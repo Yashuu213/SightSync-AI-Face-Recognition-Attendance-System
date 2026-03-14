@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% block title %}Live Attendance Camera{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:800px;margin:0 auto;">
+  <div class="card-header flex-between">
+    <div>
+      <h3><i class="fa-solid fa-circle-dot" style="color:#ef4444;"></i> Live Face Recognition</h3>
+      <p class="sub">Keep your face in view for ~1 second — attendance will be marked automatically.</p>
+    </div>
+    <button class="btn btn-primary" id="btnStart"><i class="fa-solid fa-play"></i> Start Camera</button>
+  </div>
+
+  <div class="card-body text-center" style="padding:24px;">
+    <!-- Camera + Drawing Canvas -->
+    <div class="live-box" id="liveBox" style="display:none;">
+      <video id="vid" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <!-- Status bar at bottom -->
+      <div class="live-status" id="liveStatus">Scanning for faces…</div>
+    </div>
+
+    <div id="startHint" style="padding:60px 20px;color:#9CA3AF;">
+      <i class="fa-solid fa-camera" style="font-size:4rem;"></i>
+      <p style="margin-top:12px;">Click <b>Start Camera</b> to begin.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .live-box {
+    position: relative;
+    width: 640px;
+    height: 480px;
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 0 auto;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+    background: #000;
+  }
+
+  #vid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+  }
+
+  .live-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    text-align: center;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-weight: 600;
+    font-size: .95rem;
+    z-index: 10;
+    transition: background .3s;
+  }
+
+  .status-green {
+    background: rgba(5, 150, 105, .85) !important;
+  }
+
+  .status-red {
+    background: rgba(220, 38, 38, .75) !important;
+  }
+</style>
+
+<script>
+  (function () {
+    const vid = document.getElementById('vid');
+    const overlay = document.getElementById('overlay');
+    const liveBox = document.getElementById('liveBox');
+    const startHint = document.getElementById('startHint');
+    const liveStatus = document.getElementById('liveStatus');
+    const btnStart = document.getElementById('btnStart');
+    const octx = overlay.getContext('2d');
+    const cap = document.createElement('canvas');
+    const capCtx = cap.getContext('2d');
+
+    // Track how many consecutive frames each ID appeared
+    const seenFor = {};   // { id: count }
+    const markedOn = {};   // { id: timestamp } — cooldown after marking
+    const idToName = {};   // { id: name } for display
+    const THRESHOLD = 2;    // 2 frames ≈ ~0.6 seconds
+    const COOLDOWN = 15000;// 15 s cooldown before same person is re-marked
+    let isBusy = false; // Prevent overlapping requests
+    let loopTimer = null;
+
+    btnStart.addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 640, height: 480 }
+        });
+        vid.srcObject = stream;
+        liveBox.style.display = 'block';
+        startHint.style.display = 'none';
+        btnStart.style.display = 'none';
+
+        vid.onloadedmetadata = () => {
+          overlay.width = cap.width = vid.videoWidth;
+          overlay.height = cap.height = vid.videoHeight;
+          // Start at ~3 fps
+          // Start loop with busy check
+          loopTimer = setInterval(sendFrame, 300);
+        };
+      } catch (e) {
+        alert('Camera error: ' + e.message + '\nPlease allow camera access.');
+      }
+    });
+
+    async function sendFrame() {
+      if (!vid.videoWidth || isBusy) return;
+      isBusy = true;
+      capCtx.drawImage(vid, 0, 0, cap.width, cap.height);
+      const frame = cap.toDataURL('image/jpeg', 0.6); // Slightly lower quality for faster upload
+
+      let faces = [];
+      try {
+        const res = await fetch('/api/recognise', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ frame })
+        });
+        const data = await res.json();
+        if (data.success) {
+          faces = data.faces;
+          faces.forEach(f => { if (f.id !== 'Unknown') idToName[f.id] = f.name; });
+        }
+      } catch (_) { } finally {
+        isBusy = false;
+      }
+
+      drawBoxes(faces);
+      updateAttendance(faces);
+    }
+
+    function drawBoxes(faces) {
+      const W = overlay.width;
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+
+      faces.forEach(f => {
+        // The video is CSS-mirrored, so we mirror the box X coords for overlay
+        const { top, right, bottom, left } = f.box;
+        const mLeft = W - right;
+        const mRight = W - left;
+
+        const known = f.id !== 'Unknown';
+        octx.strokeStyle = known ? '#00ff88' : '#ef4444';
+        octx.lineWidth = 3;
+        octx.strokeRect(mLeft, top, mRight - mLeft, bottom - top);
+
+        // Name tag
+        const label = (f.id === 'Unknown') ? 'Unknown' : f.name;
+        octx.font = 'bold 14px Inter,sans-serif';
+        const tw = octx.measureText(label).width;
+        octx.fillStyle = known ? '#00ff88' : '#ef4444';
+        octx.fillRect(mLeft, bottom, tw + 10, 22);
+        octx.fillStyle = '#000';
+        octx.fillText(label, mLeft + 5, bottom + 15);
+      });
+    }
+
+    async function updateAttendance(faces) {
+      const nowIds = new Set(faces.map(f => f.id).filter(id => id !== 'Unknown'));
+
+      // Decay counters for faces no longer visible
+      Object.keys(seenFor).forEach(id => {
+        if (!nowIds.has(id)) seenFor[id] = Math.max(0, seenFor[id] - 1);
+      });
+
+      if (nowIds.size === 0) {
+        liveStatus.textContent = 'Scanning for faces…';
+        liveStatus.className = 'live-status';
+        return;
+      }
+
+      let bestMsg = '';
+      let bestClass = 'live-status';
+      let bestPriority = -1;
+
+      for (const id of nowIds) {
+        seenFor[id] = (seenFor[id] || 0) + 1;
+
+        const now = Date.now();
+        const lastMark = markedOn[id] || 0;
+        const inCooldown = (now - lastMark) < COOLDOWN;
+        const displayName = idToName[id] || id;
+
+        // Priority 1: Cooldown
+        if (inCooldown) {
+          if (bestPriority < 1) {
+            bestMsg = `${displayName}: Attendance already recorded. (${Math.ceil((COOLDOWN - (now - lastMark)) / 1000)}s)`;
+            bestClass = 'live-status status-green';
+            bestPriority = 1;
+          }
+          continue;
+        }
+
+        // Priority 2: Progress
+        if (seenFor[id] < THRESHOLD) {
+          if (bestPriority < 2) {
+            bestMsg = `Recognising ${displayName}… hold still (${seenFor[id]}/${THRESHOLD})`;
+            bestClass = 'live-status';
+            bestPriority = 2;
+          }
+        }
+        // Priority 3+: Marking
+        else if (seenFor[id] === THRESHOLD) {
+          bestMsg = `Marking attendance for ${displayName}…`;
+          bestClass = 'live-status';
+          bestPriority = 3;
+
+          try {
+            const res = await fetch('/api/mark', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ employee_id: id })
+            });
+            const data = await res.json();
+            bestMsg = `✅ ${displayName}: ${data.message}`;
+            bestClass = 'live-status status-green';
+            bestPriority = 4;
+            markedOn[id] = now;
+            seenFor[id] = THRESHOLD + 1;
+          } catch (e) {
+            bestMsg = `Error marking ${displayName}: ${e.message}`;
+            bestClass = 'live-status status-red';
+            bestPriority = 0;
+          }
+        }
+      }
+
+      if (bestPriority >= 0) {
+        liveStatus.textContent = bestMsg;
+        liveStatus.className = bestClass;
+      }
+    }
+  })();
+</script>
+
+{% endblock %}

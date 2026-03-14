@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+    <div>
+      <p class="stat-label">Total Employees</p>
+      <h2 class="stat-value">{{ total_employees }}</h2>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fa-solid fa-user-check"></i></div>
+    <div>
+      <p class="stat-label">Present Today</p>
+      <h2 class="stat-value">{{ present_today }}</h2>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple"><i class="fa-solid fa-calendar-day"></i></div>
+    <div>
+      <p class="stat-label">Today</p>
+      <h2 class="stat-value" id="todayDate" style="font-size:1rem;"></h2>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header flex-between">
+    <h3>Recent Attendance</h3>
+    <a href="{{ url_for('history') }}" class="btn btn-sm btn-secondary">View All</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>ID</th><th>Date</th><th>Login</th><th>Logout</th></tr>
+      </thead>
+      <tbody>
+        {% for l in recent_logs %}
+        <tr>
+          <td><b>{{ l.name }}</b></td>
+          <td><span class="chip">{{ l.employee_id }}</span></td>
+          <td>{{ l.date }}</td>
+          <td><span class="badge green">{{ l.login_time }}</span></td>
+          <td>{% if l.logout_time %}<span class="badge grey">{{ l.logout_time }}</span>{% else %}-{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">No records yet. Add employees and scan faces in Live Attendance.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.getElementById('todayDate').textContent = new Date().toDateString();
+</script>
+{% endblock %}

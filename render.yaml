@@ -1,0 +1,28 @@
+services:
+  # 1. Admin Panel Service
+  - type: web
+    name: sightsync-admin
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Set this in the Render Dashboard after creating the project
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: APP_MODE
+        value: ADMIN
+
+  # 2. User Kiosk Service (Dedicated Link)
+  - type: web
+    name: sightsync-user
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: APP_MODE
+        value: USER # This can be used to redirect the home page to /user automatically
