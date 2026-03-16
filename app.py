@@ -280,14 +280,27 @@ from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
 
 @app.route('/export_excel')
+@login_required
 def export_excel():
+    month = request.args.get('month', type=int, default=datetime.now().month)
+    year  = request.args.get('year',  type=int, default=datetime.now().year)
+    
     logs = get_attendance_logs()
     employees = get_all_employees()
     
-    # Setup Date Range for Current Month (up to today)
+    # Setup Date Range for Selected Month
+    import calendar
+    last_day = calendar.monthrange(year, month)[1]
+    
+    # If it's the current month, only go up to today
     today = datetime.now()
-    start_date = today.replace(day=1)
-    date_range = pd.date_range(start=start_date, end=today)
+    if year == today.year and month == today.month:
+        end_date = today
+    else:
+        end_date = datetime(year, month, last_day)
+        
+    start_date = datetime(year, month, 1)
+    date_range = pd.date_range(start=start_date, end=end_date)
     
     # 1. Prepare Base Employee DataFrame
     emp_list = [{'ID': e['employee_id'], 'Name': e['name'], 'Department': e['department']} for e in employees]
@@ -303,7 +316,7 @@ def export_excel():
     for l in logs:
         try:
            log_date = datetime.strptime(l['date'], '%Y-%m-%d')
-           if log_date.month == today.month and log_date.year == today.year:
+           if log_date.month == month and log_date.year == year:
                eid = l['employee_id']
                if l['login_time'] == 'Absent':
                    status = 'Absent'

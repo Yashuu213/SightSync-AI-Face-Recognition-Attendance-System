@@ -28,6 +28,45 @@
 
 <div class="card mt-4">
   <div class="card-header flex-between">
+    <h3><i class="fa-solid fa-file-invoice"></i> Download Monthly Reports</h3>
+    <small>Generate detailed attendance for any previous month</small>
+  </div>
+  <div class="card-body">
+    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 150px;">
+        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px; color: #64748b;">Select Month</label>
+        <select id="reportMonth" class="form-control" style="width: 100%;">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 150px;">
+        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px; color: #64748b;">Select Year</label>
+        <select id="reportYear" class="form-control" style="width: 100%;">
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="downloadReport()" style="height: 42px;">
+        <i class="fa-solid fa-download"></i> Download Excel
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header flex-between">
     <h3>Recent Attendance</h3>
     <a href="{{ url_for('history') }}" class="btn btn-sm btn-secondary">View All</a>
   </div>
@@ -70,6 +109,17 @@
 </div>
 
 <script>
-document.getElementById('todayDate').textContent = new Date().toDateString();
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date();
+    document.getElementById('todayDate').textContent = today.toDateString();
+    document.getElementById('reportMonth').value = today.getMonth() + 1;
+    document.getElementById('reportYear').value = today.getFullYear();
+});
+
+function downloadReport() {
+    const month = document.getElementById('reportMonth').value;
+    const year = document.getElementById('reportYear').value;
+    window.location.href = `/export_excel?month=${month}&year=${year}`;
+}
 </script>
 {% endblock %}
