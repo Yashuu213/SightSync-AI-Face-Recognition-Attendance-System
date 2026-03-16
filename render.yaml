@@ -1,28 +1,13 @@
 services:
-  # 1. Admin Panel Service
+  # 1. Keya Fusion Unified System (Admin + User Panel)
+  # Admin is at "/" and User Kiosk is at "/user"
   - type: web
-    name: keya-fusion-admin
+    name: keya-fusion-system
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: DATABASE_URL
-        sync: false # Set this in the Render Dashboard after creating the project
+        sync: false # Set this to your Supabase URL in Render Dashboard
       - key: PYTHON_VERSION
         value: 3.10.12
-      - key: APP_MODE
-        value: ADMIN
-
-  # 2. User Kiosk Service (Dedicated Link)
-  - type: web
-    name: keya-fusion-user
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: PYTHON_VERSION
-        value: 3.10.12
-      - key: APP_MODE
-        value: USER # This can be used to redirect the home page to /user automatically
