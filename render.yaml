@@ -1,7 +1,7 @@
 services:
   # 1. Admin Panel Service
   - type: web
-    name: sightsync-admin
+    name: keya-fusion-admin
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
@@ -15,7 +15,7 @@ services:
 
   # 2. User Kiosk Service (Dedicated Link)
   - type: web
-    name: sightsync-user
+    name: keya-fusion-user
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app

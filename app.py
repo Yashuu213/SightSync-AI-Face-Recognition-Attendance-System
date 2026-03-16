@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 import base64
 
-from database import init_db, add_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs
+from database import init_db, add_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, get_db_connection, get_cursor, get_placeholder
 from face_utils import encode_face_from_image, serialize_encoding, deserialize_encoding, match_face
 
 app = Flask(__name__)
@@ -184,6 +184,46 @@ def api_mark():
     status = mark_attendance(eid)
     return jsonify(success=True, message=status)
 
+# ─── API: Manual attendance override ──────────────────────────────────────────
+@app.route('/api/manual_attendance', methods=['POST'])
+def api_manual_attendance():
+    data = request.get_json(force=True)
+    eid = data.get('employee_id')
+    status = data.get('status')
+    date_val = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+    
+    if not eid or not status:
+        return jsonify(success=False, message='Missing parameters')
+        
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    
+    # Check if record exists
+    cursor.execute(f"SELECT id FROM attendance WHERE employee_id = {p} AND date = {p}", (eid, date_val))
+    record = cursor.fetchone()
+    
+    if status == 'Present':
+        in_time = datetime.now().strftime('%H:%M:%S')
+        out_time = ''
+    else:
+        in_time = 'Absent'
+        out_time = 'Absent'
+
+    rec_id = record['id'] if record else None
+    # SQLite row object behaves like dict but accessing by 'id' might need dict-like access
+    if record and type(record) is not dict:
+        rec_id = record[0] if isinstance(record, tuple) else record['id']
+
+    if record:
+        cursor.execute(f"UPDATE attendance SET login_time = {p}, logout_time = {p} WHERE id = {p}", (in_time, out_time, rec_id))
+    else:
+        cursor.execute(f"INSERT INTO attendance (employee_id, date, login_time, logout_time) VALUES ({p}, {p}, {p}, {p})", (eid, date_val, in_time, out_time))
+        
+    conn.commit()
+    conn.close()
+    return jsonify(success=True)
+
 
 # ─── Export Excel ─────────────────────────────────────────────────────────────
 @app.route('/export_excel')
@@ -192,10 +232,13 @@ def export_excel():
     rows = []
     for l in logs:
         hours = ''
-        if l['login_time'] and l['logout_time']:
+        if l['login_time'] and l['logout_time'] and l['login_time'] != 'Absent' and l['logout_time'] != 'Absent':
             fmt = '%H:%M:%S'
-            diff = datetime.strptime(l['logout_time'], fmt) - datetime.strptime(l['login_time'], fmt)
-            hours = str(diff)
+            try:
+                diff = datetime.strptime(l['logout_time'], fmt) - datetime.strptime(l['login_time'], fmt)
+                hours = str(diff)
+            except ValueError:
+                hours = 'N/A'
         rows.append({
             'Employee ID': l['employee_id'],
             'Name': l['name'],

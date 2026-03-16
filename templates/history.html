@@ -8,25 +8,41 @@
     <a href="{{ url_for('export_excel') }}" class="btn btn-success"><i class="fa-solid fa-download"></i> Download Excel</a>
   </div>
   <div class="card-body p-0">
-    <table class="table">
-      <thead>
-        <tr><th>Date</th><th>Name</th><th>ID</th><th>Department</th><th>Login</th><th>Logout</th></tr>
-      </thead>
-      <tbody>
-        {% for l in logs %}
-        <tr>
-          <td>{{ l.date }}</td>
-          <td><b>{{ l.name }}</b></td>
-          <td><span class="chip">{{ l.employee_id }}</span></td>
-          <td>{{ l.department }}</td>
-          <td><span class="badge green">{{ l.login_time }}</span></td>
-          <td>{% if l.logout_time %}<span class="badge grey">{{ l.logout_time }}</span>{% else %}-{% endif %}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="empty">No attendance records found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr><th>Date</th><th>Name</th><th>ID</th><th>Department</th><th>Login</th><th>Logout</th></tr>
+        </thead>
+        <tbody>
+          {% for l in logs %}
+          <tr>
+            <td>{{ l.date }}</td>
+            <td><b>{{ l.name }}</b></td>
+            <td><span class="chip">{{ l.employee_id }}</span></td>
+            <td>{{ l.department }}</td>
+            <td>
+              {% if l.login_time == 'Absent' %}
+                <span class="badge danger" style="background: #FEE2E2; color: #ef4444;">Absent</span>
+              {% else %}
+                <span class="badge green">{{ l.login_time }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if l.logout_time == 'Absent' %}
+                <span class="badge danger" style="background: #FEE2E2; color: #ef4444;">Absent</span>
+              {% elif l.logout_time %}
+                <span class="badge grey">{{ l.logout_time }}</span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">No attendance records found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -4,19 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SightSync | Attendance Kiosk</title>
+    <title>Keya Fusion | Attendance Kiosk</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
+            --primary: #2b59a2;
+            /* Brand Blue */
+            --primary-gradient: linear-gradient(135deg, #2b59a2 0%, #3b82f6 100%);
+            --accent: #f59e0b;
+            /* Brand Orange */
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-dim: #64748b;
             --success: #10b981;
             --error: #ef4444;
+            --border: #e2e8f0;
         }
 
         * {
@@ -40,12 +44,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid var(--border);
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
 
         .brand {
@@ -58,13 +63,18 @@
         }
 
         .brand .logo-icon {
-            width: 32px;
-            height: 32px;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 8px;
+            width: auto;
+            height: 48px;
+            background: transparent;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+        }
+
+        .brand img {
+            height: 100%;
+            width: auto;
         }
 
         .time-box {
@@ -116,9 +126,10 @@
             width: 100%;
             aspect-ratio: 4/3;
             background: #000;
-            border-radius: 20px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1), 0 15px 40px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            border: 8px solid white;
         }
 
         #video {
@@ -175,9 +186,10 @@
 
         .status-card {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 24px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
             text-align: center;
         }
 
@@ -190,15 +202,15 @@
         }
 
         .status-indicator {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 15px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
+            font-size: 1.8rem;
+            border-radius: 20px;
+            background: #f1f5f9;
             transition: all 0.3s;
         }
 
@@ -360,8 +372,8 @@
 
     <header>
         <div class="brand">
-            <div class="logo-icon"><i class="fa-solid fa-eye"></i></div>
-            <span>SightSync Kiosk</span>
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Keya Fusion"
+                style="height: 48px; width: auto;">
         </div>
         <div class="time-box">
             <div id="clock">00:00:00</div>

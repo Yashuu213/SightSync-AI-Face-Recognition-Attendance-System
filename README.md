@@ -1,17 +1,17 @@
-# 👁️ SightSync – AI Face Recognition Attendance System
+# ⚛️ Keya Fusion – AI Face Recognition Attendance System
 
-SightSync is a modern, fast, and robust attendance management system powered by Python, Flask, and OpenCV. It uses deep learning to recognize faces in real-time and manages attendance logs in a cloud-hosted Supabase database.
+**Keya Fusion** is a premium, fast, and robust attendance management system powered by Python, Flask, and OpenCV. It uses cutting-edge AI to recognize faces in real-time and manages attendance logs in a cloud-hosted Supabase database.
 
 ---
 
 ## ✨ Key Features
 
-- **🛡️ Admin Dashboard**: Full control over employee registration, record management, and attendance history.
-- **🖥️ Dedicated User Kiosk**: A premium, standalone screen for employees to mark attendance via face recognition.
+- **🛡️ Admin Dashboard**: Full control over employee registration, record management, and attendance history in a sleek AI-themed interface.
+- **🖥️ Dedicated User Kiosk**: A high-performance, responsive screen for employees to mark attendance via face recognition.
 - **☁️ Cloud Database (Supabase)**: Persistent storage in the cloud, allowing the system to be accessed from anywhere.
-- **⚡ Real-time Recognition**: High-speed face detection for instantaneous marking.
-- **📊 Excel Export**: Download detailed attendance reports with a single click.
-- **🛠️ Robust Registration**: Smart capture system that takes 20 samples per person for maximum accuracy.
+- **⚡ Real-time Recognition**: High-speed "Fusion" engine for instantaneous marking (~0.6s).
+- **📊 Excel Export**: Download detailed analytical reports with a single click.
+- **🛠️ AI Registration**: Robust capture system that takes multiple samples per person for maximum accuracy.
 
 ---
 
@@ -32,17 +32,14 @@ To enable cloud storage:
 2. Go to **Settings > Database** and copy your **URI connection string**.
 3. Open the **`.env`** file in the project folder.
 4. Paste your link: `DATABASE_URL=your_supabase_uri_here`
-5. Replace `[YOUR-PASSWORD]` with your actual database password.
 
 ---
 
 ## 🎬 Launchers
 
-We have provided dedicated launchers for different use cases:
-
 - **`run_app.bat`**: Launches the full Admin System.
-- **`run_user_panel.bat`**: Launches the server and opens the **User Kiosk** directly.
-- **`open_user_panel.bat`**: Just opens the kiosk in the browser (use this if the server is already running).
+- **`run_user_panel.bat`**: Launches the server and opens the **Keya Fusion Kiosk** directly.
+- **`open_user_panel.bat`**: Just opens the kiosk in the browser.
 
 ---
 
@@ -50,9 +47,8 @@ We have provided dedicated launchers for different use cases:
 
 - **Backend**: Python, Flask
 - **Database**: PostgreSQL (Supabase) / SQLite (Local Fallback)
-- **Computer Vision**: OpenCV, dlib, face_recognition
-- **Frontend**: Vanilla CSS (Glassmorphism), JavaScript (Fetch API), PWA (Mobile Support)
-- **Data Analysis**: Pandas, OpenPyXL
+- **Computer Vision**: OpenCV, dlib, face_recognition (HOG Model)
+- **Frontend**: Glassmorphism UI (Keya Fusion Theme), JavaScript, PWA
 
 ---
 
@@ -62,14 +58,13 @@ We have provided dedicated launchers for different use cases:
 ├── app.py                # Main Flask Application
 ├── database.py           # Multi-mode Database Engine
 ├── face_utils.py         # AI Logic & Face Encoding
-├── static/               # CSS, JS, and Images
+├── static/               # CSS (Keya Fusion Theme), JS, and Images
 ├── templates/            # HTML Interface
-├── run_app.bat           # Main System Launcher
-├── run_user_panel.bat    # Dedicated Kiosk Launcher
+├── render.yaml           # Cloud Deployment Blueprint
 └── .env                  # Cloud Configuration
 ```
 
 ---
 
 ## 📝 License
-This project is open-source. Feel free to modify and adapt it for your needs.
+This project is part of the Keya Fusion suite.

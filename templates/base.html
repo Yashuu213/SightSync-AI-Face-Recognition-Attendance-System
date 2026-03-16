@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SightSync | {% block title %}{% endblock %}</title>
+  <title>Keya Fusion | {% block title %}{% endblock %}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -17,12 +17,13 @@
 
 <body>
   <div class="layout">
+    <!-- Mobile Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- ── Sidebar ── -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="logo-icon"><i class="fa-solid fa-eye"></i></div>
-        <span>SightSync</span>
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Keya Fusion" style="height: 48px; width: auto;">
       </div>
       <nav>
         <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint=='index'        %}active{% endif %}"><i
@@ -48,8 +49,15 @@
     <!-- ── Main ── -->
     <div class="main">
       <header class="topbar">
-        <h2>{{ self.title() }}</h2>
-        <div class="admin-badge"><i class="fa-solid fa-shield-halved"></i> Admin</div>
+        <div style="display: flex; align-items: center;">
+          <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h2>{{ self.title() }}</h2>
+        </div>
+        <div class="topbar-right">
+          <div class="admin-badge"><i class="fa-solid fa-shield-halved"></i> Admin</div>
+        </div>
       </header>
       <div class="page-content">
         {% block content %}{% endblock %}
@@ -57,6 +65,35 @@
     </div>
 
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileBtn = document.getElementById('mobileMenuBtn');
+      const sidebar = document.querySelector('.sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      function toggleSidebar() {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+      }
+
+      if (mobileBtn && sidebar && overlay) {
+        mobileBtn.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+        
+        // Close sidebar when clicking a link on mobile
+        const navLinks = sidebar.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+              toggleSidebar();
+            }
+          });
+        });
+      }
+    });
+  </script>
 </body>
 
 </html>
