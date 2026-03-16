@@ -362,11 +362,11 @@ def export_excel():
         if col_num <= 3:
            worksheet.column_dimensions[col_let].width = 20
         else:
-           worksheet.column_dimensions[col_let].width = 15 # Slightly wider for times
+           worksheet.column_dimensions[col_let].width = 18 # More room for IN/OUT
     
     # Format Cells based on text
     for r_idx in range(2, len(df_emp) + 2):
-        worksheet.row_dimensions[r_idx].height = 30 # Taller rows for IN/OUT
+        worksheet.row_dimensions[r_idx].height = 42 # Much taller for better spacing
         for c_idx in range(4, len(df_emp.columns) + 1):
             cell = worksheet.cell(row=r_idx, column=c_idx)
             val = str(cell.value) if cell.value else ""
@@ -374,7 +374,7 @@ def export_excel():
             
             if "IN:" in val:
                 cell.fill = present_fill
-                cell.font = Font(color="065F46", bold=True, size=9)
+                cell.font = Font(color="065F46", bold=True, size=10) # Slightly larger font
             elif val == 'Absent':
                 cell.fill = absent_fill
                 cell.font = Font(color="991B1B", size=9)
