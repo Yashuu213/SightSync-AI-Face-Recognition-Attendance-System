@@ -114,8 +114,9 @@ def delete_employee(employee_id):
     conn = get_db_connection()
     cursor = get_cursor(conn)
     p = get_placeholder()
-    cursor.execute(f'DELETE FROM employees WHERE employee_id = {p}', (employee_id,))
+    # Delete child records first to respect Foreign Key constraints
     cursor.execute(f'DELETE FROM attendance WHERE employee_id = {p}', (employee_id,))
+    cursor.execute(f'DELETE FROM employees WHERE employee_id = {p}', (employee_id,))
     conn.commit()
     conn.close()
 
