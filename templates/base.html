@@ -43,6 +43,7 @@
           class="nav-link {% if request.endpoint=='history'           %}active{% endif %}"><i
             class="fa-solid fa-clock-rotate-left"></i>History</a>
         <a href="{{ url_for('export_excel') }}" class="nav-link"><i class="fa-solid fa-file-excel"></i>Export Excel</a>
+        <a href="{{ url_for('logout') }}" class="nav-link" style="color: #ef4444; margin-top: 15px;"><i class="fa-solid fa-right-from-bracket"></i>Logout</a>
       </nav>
     </aside>
 
