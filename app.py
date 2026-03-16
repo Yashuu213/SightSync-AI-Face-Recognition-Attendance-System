@@ -294,25 +294,28 @@ def export_excel():
       df_emp = pd.DataFrame(columns=['ID', 'Name', 'Department'])
     
     # 2. Process Logs into a Dictionary
-    # Key: (employee_id, date_str), Value: Status
+    # Key: (employee_id, date_str), Value: Status string
     attendance_dict = {}
     for l in logs:
         try:
-           # only care about current month
            log_date = datetime.strptime(l['date'], '%Y-%m-%d')
            if log_date.month == today.month and log_date.year == today.year:
                eid = l['employee_id']
-               status = 'Absent' if l['login_time'] == 'Absent' else 'Present'
+               if l['login_time'] == 'Absent':
+                   status = 'Absent'
+               else:
+                   in_t = l.get('login_time', '-')
+                   out_t = l.get('logout_time', '-') or '-'
+                   status = f"IN: {in_t}\nOUT: {out_t}"
                attendance_dict[(eid, log_date.strftime('%Y-%m-%d'))] = status
-        except ValueError:
+        except Exception:
            pass
            
     # 3. Build Date Columns
-    # Loop through all days in current month up to today
     for single_date in date_range:
         date_str = single_date.strftime('%Y-%m-%d')
-        col_name = single_date.strftime('%d-%b') # e.g. 05-Mar
-        is_sunday = single_date.weekday() == 6 # 0=Mon, 6=Sun
+        col_name = single_date.strftime('%d-%b')
+        is_sunday = single_date.weekday() == 6
         
         status_list = []
         for idx, row in df_emp.iterrows():
@@ -320,8 +323,7 @@ def export_excel():
             if is_sunday:
                 status_list.append('Holiday')
             else:
-                # Check dictionary
-                status = attendance_dict.get((eid, date_str), 'Absent') # Default to absent if no record and not a weekend
+                status = attendance_dict.get((eid, date_str), 'Absent')
                 status_list.append(status)
                 
         df_emp[col_name] = status_list
@@ -336,10 +338,10 @@ def export_excel():
     worksheet = writer.sheets['Attendance']
     
     # Define Fills
-    present_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid") # light green
-    absent_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid") # light red
-    holiday_fill = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid") # light blue/indigo
-    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid") # dark slate
+    present_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    absent_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+    holiday_fill = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid")
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     
     header_font = Font(color="FFFFFF", bold=True)
     
@@ -350,29 +352,29 @@ def export_excel():
         cell.font = header_font
         cell.alignment = Alignment(horizontal='center', vertical='center')
         
-        # Adjust column width
         col_let = get_column_letter(col_num)
         if col_num <= 3:
            worksheet.column_dimensions[col_let].width = 20
         else:
-           worksheet.column_dimensions[col_let].width = 12
+           worksheet.column_dimensions[col_let].width = 15 # Slightly wider for times
     
     # Format Cells based on text
     for r_idx in range(2, len(df_emp) + 2):
-        for c_idx in range(4, len(df_emp.columns) + 1): # Start at col 4 (first date)
+        worksheet.row_dimensions[r_idx].height = 30 # Taller rows for IN/OUT
+        for c_idx in range(4, len(df_emp.columns) + 1):
             cell = worksheet.cell(row=r_idx, column=c_idx)
-            val = cell.value
-            cell.alignment = Alignment(horizontal='center')
+            val = str(cell.value) if cell.value else ""
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             
-            if val == 'Present':
+            if "IN:" in val:
                 cell.fill = present_fill
-                cell.font = Font(color="065F46", bold=True)
+                cell.font = Font(color="065F46", bold=True, size=9)
             elif val == 'Absent':
                 cell.fill = absent_fill
-                cell.font = Font(color="991B1B")
+                cell.font = Font(color="991B1B", size=9)
             elif val == 'Holiday':
                 cell.fill = holiday_fill
-                cell.font = Font(color="3730A3")
+                cell.font = Font(color="3730A3", size=9)
                 
     writer.close()
     
