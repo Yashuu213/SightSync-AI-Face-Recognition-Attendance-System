@@ -87,13 +87,17 @@ def add_employee(employee_id, name, department, phone, email, face_encoding_byte
     cursor = get_cursor(conn)
     p = get_placeholder()
     try:
+        blob = psycopg2.Binary(face_encoding_bytes) if DB_URL else face_encoding_bytes
         cursor.execute(f'''
             INSERT INTO employees (employee_id, name, department, phone, email, face_encoding)
             VALUES ({p}, {p}, {p}, {p}, {p}, {p})
-        ''', (employee_id, name, department, phone, email, face_encoding_bytes))
+        ''', (employee_id, name, department, phone, email, blob))
         conn.commit()
         return True
     except (sqlite3.IntegrityError, psycopg2.IntegrityError):
+        return False
+    except Exception as e:
+        print(f"Error adding employee: {e}")
         return False
     finally:
         conn.close()
