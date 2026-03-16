@@ -29,8 +29,11 @@
                 <button class="btn btn-success btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Present')" title="Mark Present">
                   <i class="fa-solid fa-check"></i>
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Absent')" title="Mark Absent">
-                  <i class="fa-solid fa-xmark"></i>
+                <button class="btn btn-warning btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Sick Leave')" title="Sick Leave" style="background-color: #f59e0b; border-color: #f59e0b;">
+                  <i class="fa-solid fa-hospital-user"></i>
+                </button>
+                <button class="btn btn-info btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Paid Leave')" title="Paid Leave" style="background-color: #3b82f6; border-color: #3b82f6;">
+                  <i class="fa-solid fa-calendar-check"></i>
                 </button>
                 <button class="btn btn-danger btn-sm" onclick="delEmp('{{ e.employee_id }}','{{ e.name }}')" title="Delete Employee">
                   <i class="fa-solid fa-trash"></i>

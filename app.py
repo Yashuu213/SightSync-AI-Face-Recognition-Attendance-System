@@ -252,9 +252,13 @@ def api_manual_attendance():
     if status == 'Present':
         in_time = datetime.now().strftime('%H:%M:%S')
         out_time = ''
-    else:
+    elif status == 'Absent':
         in_time = 'Absent'
         out_time = 'Absent'
+    else:
+        # Leave statuses (Sick Leave, Paid Leave)
+        in_time = status
+        out_time = status
 
     rec_id = record['id'] if record else None
     # SQLite row object behaves like dict but accessing by 'id' might need dict-like access
@@ -341,6 +345,8 @@ def export_excel():
     present_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
     absent_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
     holiday_fill = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid")
+    sick_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid") # light yellow/orange
+    paid_fill = PatternFill(start_color="F3E8FF", end_color="F3E8FF", fill_type="solid") # light purple
     header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     
     header_font = Font(color="FFFFFF", bold=True)
@@ -375,6 +381,12 @@ def export_excel():
             elif val == 'Holiday':
                 cell.fill = holiday_fill
                 cell.font = Font(color="3730A3", size=9)
+            elif val == 'Sick Leave':
+                cell.fill = sick_fill
+                cell.font = Font(color="92400E", bold=True, size=9)
+            elif val == 'Paid Leave':
+                cell.fill = paid_fill
+                cell.font = Font(color="6B21A8", bold=True, size=9)
                 
     writer.close()
     
