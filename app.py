@@ -134,6 +134,9 @@ def serve_sw():
     return send_file('static/sw.js')
 
 @app.route('/my-attendance')
+@app.route('/my_attendance')
+@app.route('/my-attendence')
+@app.route('/my_attendence')
 def my_attendance():
     """ 
     Public route for employees to view their own attendance records.
