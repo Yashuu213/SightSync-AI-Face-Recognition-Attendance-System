@@ -110,6 +110,24 @@ def get_all_employees():
     conn.close()
     return employees
 
+def update_employee(employee_id, name, department, phone, email):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    try:
+        cursor.execute(f'''
+            UPDATE employees 
+            SET name = {p}, department = {p}, phone = {p}, email = {p}
+            WHERE employee_id = {p}
+        ''', (name, department, phone, email, employee_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating employee: {e}")
+        return False
+    finally:
+        conn.close()
+
 def delete_employee(employee_id):
     conn = get_db_connection()
     cursor = get_cursor(conn)

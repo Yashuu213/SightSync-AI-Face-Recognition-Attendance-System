@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 import base64
 
-from database import init_db, add_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, get_db_connection, get_cursor, get_placeholder
+from database import init_db, add_employee, update_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, get_db_connection, get_cursor, get_placeholder
 from face_utils import encode_face_from_image, serialize_encoding, deserialize_encoding, match_face
 
 app = Flask(__name__)
@@ -180,10 +180,30 @@ def api_add_employee():
 
 # ─── API: Delete employee ──────────────────────────────────────────────────────
 @app.route('/api/delete_employee/<eid>', methods=['POST'])
+@login_required
 def api_delete_employee(eid):
     delete_employee(eid)
     reload_faces()
     return jsonify(success=True)
+
+@app.route('/api/update_employee', methods=['POST'])
+@login_required
+def api_update_employee():
+    data = request.get_json(force=True)
+    eid = data.get('employee_id')
+    name = data.get('name')
+    dept = data.get('department')
+    phone = data.get('phone')
+    email = data.get('email')
+    
+    if not eid or not name:
+        return jsonify(success=False, message="Employee ID and Name are required.")
+    
+    ok = update_employee(eid, name, dept, phone, email)
+    if ok:
+        reload_faces()
+        return jsonify(success=True, message="Employee updated successfully.")
+    return jsonify(success=False, message="Failed to update employee.")
 
 
 # ─── API: Recognise a single frame ────────────────────────────────────────────

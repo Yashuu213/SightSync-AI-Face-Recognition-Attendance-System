@@ -26,6 +26,9 @@
             <td>{{ e.email }}</td>
             <td>
               <div style="display: flex; gap: 5px;">
+                <button class="btn btn-primary btn-sm" onclick="openEditModal('{{ e.employee_id }}', '{{ e.name }}', '{{ e.department }}', '{{ e.phone }}', '{{ e.email }}')" title="Edit Employee" style="background-color: #6366f1; border-color: #6366f1;">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
                 <button class="btn btn-success btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Present')" title="Mark Present">
                   <i class="fa-solid fa-check"></i>
                 </button>
@@ -50,6 +53,38 @@
   </div>
 </div>
 
+<!-- Edit Employee Modal -->
+<div id="editModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+  <div class="card" style="width:400px; max-width:90%; padding:20px; border-radius:12px;">
+    <div class="card-header" style="padding:0 0 15px 0;">
+      <h3>Edit Employee Details</h3>
+    </div>
+    <form id="editForm">
+      <input type="hidden" id="editEid">
+      <div style="margin-bottom:10px;">
+        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Name</label>
+        <input type="text" id="editName" class="form-control" required style="width:100%;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Department</label>
+        <input type="text" id="editDept" class="form-control" style="width:100%;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Phone</label>
+        <input type="text" id="editPhone" class="form-control" style="width:100%;">
+      </div>
+      <div style="margin-bottom:15px;">
+        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Email</label>
+        <input type="email" id="editEmail" class="form-control" style="width:100%;">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('attendanceDate');
@@ -60,6 +95,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
+});
+
+function openEditModal(id, name, dept, phone, email) {
+  document.getElementById('editEid').value = id;
+  document.getElementById('editName').value = name;
+  document.getElementById('editDept').value = dept;
+  document.getElementById('editPhone').value = phone;
+  document.getElementById('editEmail').value = email;
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saveBtn = document.getElementById('saveEditBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+
+  const payload = {
+    employee_id: document.getElementById('editEid').value,
+    name: document.getElementById('editName').value,
+    department: document.getElementById('editDept').value,
+    phone: document.getElementById('editPhone').value,
+    email: document.getElementById('editEmail').value
+  };
+
+  try {
+    const res = await fetch('/api/update_employee', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.message || "Failed to update employee.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Changes";
+    }
+  } catch (error) {
+    console.error("Error updating employee:", error);
+    alert("Connection error. Try again.");
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save Changes";
   }
 });
 
