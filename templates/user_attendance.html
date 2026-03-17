@@ -441,7 +441,7 @@
         const seenFor = {};
         const markedOn = {};
         const idToName = {};
-        const THRESHOLD = 1; // 1 frame ≈ Instant
+        const THRESHOLD = 2; // Balanced: Needs 2 frames for stability (~400ms)
         const COOLDOWN = 15000;
         let isBusy = false;
         let isMarking = false;
