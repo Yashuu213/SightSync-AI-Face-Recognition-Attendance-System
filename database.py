@@ -115,18 +115,29 @@ def update_employee(old_eid, new_eid, name, department, phone, email):
     cursor = get_cursor(conn)
     p = get_placeholder()
     try:
-        # If ID changed, we must update attendance records too
+        # If ID changed, we must update attendance records with FK considerations
         if old_eid != new_eid:
-            # 1. Update attendance records first (FK references)
-            cursor.execute(f"UPDATE attendance SET employee_id = {p} WHERE employee_id = {p}", (new_eid, old_eid))
-            # 2. Update the employee record (including PK change)
+            # 1. Get the face encoding from the old record
+            cursor.execute(f"SELECT face_encoding FROM employees WHERE employee_id = {p}", (old_eid,))
+            old_emp = cursor.fetchone()
+            if not old_emp:
+                return False
+            
+            face_encoding = old_emp['face_encoding'] if isinstance(old_emp, dict) else old_emp[0]
+            
+            # 2. Insert new employee record with new ID
             cursor.execute(f'''
-                UPDATE employees 
-                SET employee_id = {p}, name = {p}, department = {p}, phone = {p}, email = {p}
-                WHERE employee_id = {p}
-            ''', (new_eid, name, department, phone, email, old_eid))
+                INSERT INTO employees (employee_id, name, department, phone, email, face_encoding)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+            ''', (new_eid, name, department, phone, email, face_encoding))
+            
+            # 3. Update all attendance records to the new ID
+            cursor.execute(f"UPDATE attendance SET employee_id = {p} WHERE employee_id = {p}", (new_eid, old_eid))
+            
+            # 4. Delete the old employee record
+            cursor.execute(f"DELETE FROM employees WHERE employee_id = {p}", (old_eid,))
         else:
-            # Standard update
+            # Standard update (ID hasn't changed)
             cursor.execute(f'''
                 UPDATE employees 
                 SET name = {p}, department = {p}, phone = {p}, email = {p}
