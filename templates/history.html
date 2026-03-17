@@ -116,7 +116,7 @@ document.getElementById('timeForm').addEventListener('submit', async (e) => {
     }
   } catch (error) {
     console.error("Error updating time:", error);
-    alert("Connection error.");
+    alert("Error: Server is either down or returned an invalid response. Check console for details.");
     saveBtn.disabled = false;
     saveBtn.textContent = "Save Changes";
   }
