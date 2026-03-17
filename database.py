@@ -110,19 +110,33 @@ def get_all_employees():
     conn.close()
     return employees
 
-def update_employee(employee_id, name, department, phone, email):
+def update_employee(old_eid, new_eid, name, department, phone, email):
     conn = get_db_connection()
     cursor = get_cursor(conn)
     p = get_placeholder()
     try:
-        cursor.execute(f'''
-            UPDATE employees 
-            SET name = {p}, department = {p}, phone = {p}, email = {p}
-            WHERE employee_id = {p}
-        ''', (name, department, phone, email, employee_id))
+        # If ID changed, we must update attendance records too
+        if old_eid != new_eid:
+            # 1. Update attendance records first (FK references)
+            cursor.execute(f"UPDATE attendance SET employee_id = {p} WHERE employee_id = {p}", (new_eid, old_eid))
+            # 2. Update the employee record (including PK change)
+            cursor.execute(f'''
+                UPDATE employees 
+                SET employee_id = {p}, name = {p}, department = {p}, phone = {p}, email = {p}
+                WHERE employee_id = {p}
+            ''', (new_eid, name, department, phone, email, old_eid))
+        else:
+            # Standard update
+            cursor.execute(f'''
+                UPDATE employees 
+                SET name = {p}, department = {p}, phone = {p}, email = {p}
+                WHERE employee_id = {p}
+            ''', (name, department, phone, email, old_eid))
+        
         conn.commit()
         return True
     except Exception as e:
+        if conn: conn.rollback()
         print(f"Error updating employee: {e}")
         return False
     finally:

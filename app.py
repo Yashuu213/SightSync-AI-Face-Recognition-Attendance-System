@@ -190,16 +190,17 @@ def api_delete_employee(eid):
 @login_required
 def api_update_employee():
     data = request.get_json(force=True)
-    eid = data.get('employee_id')
+    old_eid = data.get('old_employee_id')
+    new_eid = data.get('employee_id')
     name = data.get('name')
     dept = data.get('department')
     phone = data.get('phone')
     email = data.get('email')
     
-    if not eid or not name:
+    if not old_eid or not new_eid or not name:
         return jsonify(success=False, message="Employee ID and Name are required.")
     
-    ok = update_employee(eid, name, dept, phone, email)
+    ok = update_employee(old_eid, new_eid, name, dept, phone, email)
     if ok:
         reload_faces()
         return jsonify(success=True, message="Employee updated successfully.")

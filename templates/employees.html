@@ -60,7 +60,11 @@
       <h3>Edit Employee Details</h3>
     </div>
     <form id="editForm">
-      <input type="hidden" id="editEid">
+      <input type="hidden" id="oldEid">
+      <div style="margin-bottom:10px;">
+        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Employee ID</label>
+        <input type="text" id="editEid" class="form-control" required style="width:100%;">
+      </div>
       <div style="margin-bottom:10px;">
         <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Name</label>
         <input type="text" id="editName" class="form-control" required style="width:100%;">
@@ -99,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function openEditModal(id, name, dept, phone, email) {
+  document.getElementById('oldEid').value = id;
   document.getElementById('editEid').value = id;
   document.getElementById('editName').value = name;
   document.getElementById('editDept').value = dept;
@@ -118,6 +123,7 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
   saveBtn.textContent = "Saving...";
 
   const payload = {
+    old_employee_id: document.getElementById('oldEid').value,
     employee_id: document.getElementById('editEid').value,
     name: document.getElementById('editName').value,
     department: document.getElementById('editDept').value,
