@@ -441,7 +441,7 @@
         const seenFor = {};
         const markedOn = {};
         const idToName = {};
-        const THRESHOLD = 2; // 2 frames ≈ ~0.6 seconds
+        const THRESHOLD = 1; // 1 frame ≈ Instant
         const COOLDOWN = 15000;
         let isBusy = false;
         let isMarking = false;
@@ -465,12 +465,12 @@
                 video.srcObject = stream;
                 btnStart.style.display = 'none';
                 scanner.style.display = 'block';
-                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
 
                 video.onloadedmetadata = () => {
                     overlay.width = cap.width = video.videoWidth;
                     overlay.height = cap.height = video.videoHeight;
-                    loopTimer = setInterval(processFrame, 300);
+                    loopTimer = setInterval(processFrame, 200);
                 };
             } catch (e) {
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');

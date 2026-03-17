@@ -39,7 +39,7 @@ def deserialize_encoding(encoding_bytes):
     """ Converts bytes from SQLite BLOB back to a numpy array """
     return np.frombuffer(encoding_bytes, dtype=np.float64)
 
-def match_face(known_encodings, known_ids, face_encoding_to_check, tolerance=0.5):
+def match_face(known_encodings, known_ids, face_encoding_to_check, tolerance=0.6):
     """
     Compares the given face encoding with a list of known encodings.
     Returns the matched employee_id or None.
