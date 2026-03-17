@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 import base64
 
-from database import init_db, add_employee, update_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, get_db_connection, get_cursor, get_placeholder
+from database import init_db, add_employee, update_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, get_attendance_logs, update_attendance_time, get_db_connection, get_cursor, get_placeholder
 from face_utils import encode_face_from_image, serialize_encoding, deserialize_encoding, match_face
 
 app = Flask(__name__)
@@ -250,6 +250,22 @@ def api_mark():
         return jsonify(success=False, message='No employee_id')
     status = mark_attendance(eid)
     return jsonify(success=True, message=status)
+
+@app.route('/api/update_attendance_time', methods=['POST'])
+@login_required
+def api_update_attendance_time():
+    data = request.get_json(force=True)
+    rid = data.get('id')
+    login_t = data.get('login_time')
+    logout_t = data.get('logout_time')
+    
+    if not rid:
+        return jsonify(success=False, message="Record ID is required.")
+    
+    ok = update_attendance_time(rid, login_t, logout_t)
+    if ok:
+        return jsonify(success=True, message="Attendance record updated successfully.")
+    return jsonify(success=False, message="Failed to update record.")
 
 # ─── API: Manual attendance override ──────────────────────────────────────────
 @app.route('/api/manual_attendance', methods=['POST'])

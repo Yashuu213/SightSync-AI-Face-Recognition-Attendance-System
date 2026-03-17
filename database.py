@@ -258,3 +258,21 @@ def get_attendance_logs(date=None):
     logs = cursor.fetchall()
     conn.close()
     return logs
+
+def update_attendance_time(record_id, login_time, logout_time):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    try:
+        cursor.execute(f'''
+            UPDATE attendance 
+            SET login_time = {p}, logout_time = {p} 
+            WHERE id = {p}
+        ''', (login_time, logout_time, record_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating attendance time: {e}")
+        return False
+    finally:
+        conn.close()
