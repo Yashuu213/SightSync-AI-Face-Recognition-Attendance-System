@@ -133,6 +133,14 @@ def serve_manifest():
 def serve_sw():
     return send_file('static/sw.js')
 
+@app.route('/my-attendance')
+def my_attendance():
+    """ 
+    Public route for employees to view their own attendance records.
+    Authentication is handled on the frontend via localStorage ID or a search form.
+    """
+    return render_template('my_attendance.html')
+
 # ─── API: Add employee with live face samples ──────────────────────────────────
 @app.route('/api/add_employee', methods=['POST'])
 def api_add_employee():
@@ -257,6 +265,39 @@ def api_mark():
         status_type, msg = "ERROR", res
         
     return jsonify(success=True, type=status_type, message=msg)
+
+@app.route('/api/get_my_attendance', methods=['POST'])
+def api_get_my_attendance():
+    """ Public API for personal employee dashboard """
+    data = request.get_json(force=True)
+    eid = (data.get('employee_id') or '').strip()
+    month = data.get('month', datetime.now().month)
+    year = data.get('year', datetime.now().year)
+
+    if not eid:
+        return jsonify(success=False, message="Employee ID is required.")
+
+    # Get employee name
+    import database
+    employees = database.get_all_employees()
+    emp = next((e for e in employees if e['employee_id'] == eid), None)
+    name = emp['name'] if emp else "Unknown"
+
+    # Get all logs and filter by employee and month
+    all_logs = get_attendance_logs()
+    filtered_logs = []
+    for log in all_logs:
+        try:
+            log_date = datetime.strptime(log['date'], '%Y-%m-%d')
+            if log['employee_id'] == eid and log_date.month == month and log_date.year == year:
+                filtered_logs.append({
+                    'date': log['date'],
+                    'login': log['login_time'],
+                    'logout': log['logout_time'],
+                })
+        except: continue
+    
+    return jsonify(success=True, name=name, logs=filtered_logs)
 
 @app.route('/api/update_attendance_time', methods=['POST'])
 @login_required
