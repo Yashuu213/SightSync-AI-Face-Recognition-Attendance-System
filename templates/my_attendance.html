@@ -206,8 +206,14 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
+            background: #f8fafc;
+            padding: 5px;
+            border-radius: 6px;
         }
-        .time-info i { width: 14px; text-align: center; margin-right: 4px; color: var(--gray-300); }
+        .time-row { display: flex; justify-content: space-between; align-items: center; }
+        .time-label { font-size: 0.65rem; font-weight: 600; color: var(--gray-300); text-transform: uppercase; }
+        .time-val { font-weight: 700; color: var(--gray-800); }
+        .time-info i { width: 14px; text-align: center; margin-right: 2px; color: var(--gray-300); }
 
         .ot-tag {
             color: var(--warning);
@@ -216,9 +222,11 @@
         }
 
         @media (max-width: 768px) {
-            .day { min-height: 80px; padding: 5px; }
-            .time-info { display: none; }
+            .day { min-height: 90px; padding: 5px; }
             .day-num { font-size: 0.85rem; }
+            .time-info { padding: 2px; gap: 1px; }
+            .time-val { font-size: 0.7rem; }
+            .time-label { display: none; }
         }
 
         /* ── Summary Cards ── */
@@ -432,14 +440,19 @@
                         html += `<span class="status-badge status-absent">Absent</span>`;
                         aCount++;
                     } else if (log.login) {
-                        html += `<span class="status-badge status-present">Present</span>`;
+                        pCount++;
                         html += `
                             <div class="time-info">
-                                <span><i class="fa-solid fa-right-to-bracket"></i>${log.login}</span>
-                                <span><i class="fa-solid fa-right-from-bracket"></i>${log.logout || '---'}</span>
+                                <div class="time-row">
+                                    <span class="time-label">In</span>
+                                    <span class="time-val"><i class="fa-solid fa-right-to-bracket"></i>${log.login}</span>
+                                </div>
+                                <div class="time-row">
+                                    <span class="time-label">Out</span>
+                                    <span class="time-val"><i class="fa-solid fa-right-from-bracket"></i>${log.logout || '---'}</span>
+                                </div>
                             </div>
                         `;
-                        pCount++;
 
                         // OT Calculation (Simplified JS version for UI)
                         if (log.logout && log.logout !== '-') {
