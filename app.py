@@ -248,8 +248,15 @@ def api_mark():
     eid  = (data.get('employee_id') or '').strip()
     if not eid:
         return jsonify(success=False, message='No employee_id')
-    status = mark_attendance(eid)
-    return jsonify(success=True, message=status)
+    
+    # mark_attendance now returns (type, message)
+    res = mark_attendance(eid)
+    if isinstance(res, tuple):
+        status_type, msg = res
+    else:
+        status_type, msg = "ERROR", res
+        
+    return jsonify(success=True, type=status_type, message=msg)
 
 @app.route('/api/update_attendance_time', methods=['POST'])
 @login_required

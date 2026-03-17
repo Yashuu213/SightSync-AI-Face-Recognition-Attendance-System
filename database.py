@@ -177,62 +177,39 @@ def mark_attendance(employee_id):
     
     record = cursor.fetchone()
 
-    status = ""
     if not record:
+        # First scan of the day -> Check-In
         cursor.execute(f'''
             INSERT INTO attendance (employee_id, date, login_time, logout_time)
             VALUES ({p}, {p}, {p}, {p})
         ''', (employee_id, today, now_time, ""))
-        status = f"Login recorded at {now_time}"
+        conn.commit()
+        conn.close()
+        return "IN", f"Check-In: {now_time}"
     else:
-        # SQLite row might be a tuple internally if not configured optimally, 
-        # but row_factory = sqlite3.Row allows dict access.
+        # Extract values (handle both dict and tuple)
         try:
-            attendance_id = record['id']
+            rid = record['id']
             login_val = record['login_time']
             logout_val = record['logout_time']
         except (TypeError, IndexError):
-            attendance_id = record[0]
-            login_val = record[1]
-            logout_val = record[2]
+            rid, login_val, logout_val = record[0], record[1], record[2]
 
-        # Prevent overwriting manual "Absent" overrides
-        if login_val == 'Absent' or logout_val == 'Absent':
+        # Safety: If manual override is active, don't update
+        if login_val == 'Absent' or logout_val == 'Absent' or login_val == 'Sick Leave' or login_val == 'Paid Leave':
             conn.close()
-            return "Manual override active. Contact admin."
+            return "OVERRIDE", "Manual Leave Active"
 
-        current_time = datetime.datetime.strptime(now_time, '%H:%M:%S')
+        # If already logged out for today
+        if logout_val and logout_val != "":
+            conn.close()
+            return "ALREADY_OUT", f"Already Out: {logout_val}"
 
-        # 1) Enforce minimum 3 minutes (180s) between Login and first Logout allowed
-        if login_val:
-            try:
-                lt = datetime.datetime.strptime(login_val, '%H:%M:%S')
-                if (current_time - lt).total_seconds() < 180:
-                    conn.close()
-                    return "Already logged in recently."
-            except ValueError:
-                pass # If parsing fails, proceed
-
-        # 2) Enforce minimum 2 minutes (120s) between consecutive Logout updates
-        if logout_val:
-            try:
-                last_out = datetime.datetime.strptime(logout_val, '%H:%M:%S')
-                if (current_time - last_out).total_seconds() < 120:
-                    conn.close()
-                    return "Already marked recently."
-            except ValueError:
-                pass
-
-        cursor.execute(f'''
-            UPDATE attendance 
-            SET logout_time = {p} 
-            WHERE id = {p}
-        ''', (now_time, attendance_id))
-        status = f"Logout recorded at {now_time}"
-
-    conn.commit()
-    conn.close()
-    return status
+        # Otherwise -> Check-Out
+        cursor.execute(f"UPDATE attendance SET logout_time = {p} WHERE id = {p}", (now_time, rid))
+        conn.commit()
+        conn.close()
+        return "OUT", f"Check-Out: {now_time}"
 
 def get_attendance_logs(date=None):
     conn = get_db_connection()

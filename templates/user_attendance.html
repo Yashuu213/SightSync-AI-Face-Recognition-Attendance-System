@@ -230,6 +230,16 @@
             color: var(--success);
             background: rgba(16, 185, 129, 0.1);
         }
+        
+        .state-info .status-indicator {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .state-out .status-indicator {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
 
         .state-error .status-indicator {
             color: var(--error);
@@ -571,14 +581,36 @@
                         
                         if (data.success) {
                             markedOn[id] = now;
-                            bestStatus = { state: 'state-success', icon: '<i class="fa-solid fa-circle-check"></i>', text: `Welcome, ${displayName}!` };
+                            let sIcon = '<i class="fa-solid fa-circle-check"></i>';
+                            let sState = 'state-success';
+                            let sText = `Welcome, ${displayName}!`;
+
+                            if (data.type === 'IN') {
+                                sText = `<b>Check-In Success</b><br>${displayName}`;
+                                sIcon = '<i class="fa-solid fa-right-to-bracket"></i>';
+                                sState = 'state-success';
+                            } else if (data.type === 'OUT') {
+                                sText = `<b>Check-Out Success</b><br>${displayName}`;
+                                sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
+                                sState = 'state-out';
+                            } else if (data.type === 'ALREADY_OUT') {
+                                sText = `<b>Already Logged Out</b><br>${displayName}`;
+                                sIcon = '<i class="fa-solid fa-calendar-check"></i>';
+                                sState = 'state-info';
+                            } else if (data.type === 'OVERRIDE') {
+                                sText = `<b>${data.message}</b><br>${displayName}`;
+                                sIcon = '<i class="fa-solid fa-user-clock"></i>';
+                                sState = 'state-info';
+                            }
+
+                            bestStatus = { state: sState, icon: sIcon, text: sText };
                             bestPriority = 4;
                             
                             // Play the success sound
                             successSound.currentTime = 0;
                             successSound.play().catch(e => console.log('Audio play failed:', e));
                         } else {
-                            bestStatus = { state: 'state-error', icon: '<i class="fa-solid fa-circle-xmark"></i>', text: `Error for ${displayName}` };
+                            bestStatus = { state: 'state-error', icon: '<i class="fa-solid fa-circle-xmark"></i>', text: data.message || `Error for ${displayName}` };
                             bestPriority = 3;
                         }
                     } catch (e) {
