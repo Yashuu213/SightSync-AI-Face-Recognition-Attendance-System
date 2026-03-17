@@ -362,6 +362,10 @@ def export_excel():
     # 2. Process Logs into a Dictionary
     # Key: (employee_id, date_str), Value: Status string
     attendance_dict = {}
+    emp_total_ot = {} # employee_id -> total seconds
+    
+    threshold_t = datetime.strptime("17:45:00", "%H:%M:%S")
+
     for l in logs:
         try:
            log_date = datetime.strptime(l['date'], '%Y-%m-%d')
@@ -369,10 +373,28 @@ def export_excel():
                eid = l['employee_id']
                if l['login_time'] == 'Absent':
                    status = 'Absent'
+               elif l['login_time'] in ['Sick Leave', 'Paid Leave']:
+                   status = l['login_time']
                else:
                    in_t = l.get('login_time', '-')
                    out_t = l.get('logout_time', '-') or '-'
                    status = f"IN: {in_t}\nOUT: {out_t}"
+                   
+                   # OT Calculation
+                   if out_t and out_t != '-':
+                       try:
+                           actual_out = datetime.strptime(out_t, "%H:%M:%S")
+                           if actual_out > threshold_t:
+                               diff = actual_out - threshold_t
+                               ot_secs = diff.seconds
+                               emp_total_ot[eid] = emp_total_ot.get(eid, 0) + ot_secs
+                               
+                               # Format single day OT
+                               h, r = divmod(ot_secs, 3600)
+                               m, _ = divmod(r, 60)
+                               status += f"\nOT: {h:02}:{m:02}"
+                       except: pass
+
                attendance_dict[(eid, log_date.strftime('%Y-%m-%d'))] = status
         except Exception:
            pass
@@ -393,6 +415,19 @@ def export_excel():
                 status_list.append(status)
                 
         df_emp[col_name] = status_list
+
+    # 3.1 Build Total OT Column
+    total_ot_list = []
+    for idx, row in df_emp.iterrows():
+        eid = row['ID']
+        secs = emp_total_ot.get(eid, 0)
+        if secs > 0:
+            h, r = divmod(secs, 3600)
+            m, _ = divmod(r, 60)
+            total_ot_list.append(f"{h}h {m}m")
+        else:
+            total_ot_list.append("-")
+    df_emp['Total Overtime'] = total_ot_list
 
     # 4. Save via OpenPyXL and Apply Colors
     path = os.path.join(os.path.dirname(__file__), 'data', 'Monthly_Attendance.xlsx')
