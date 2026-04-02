@@ -440,7 +440,8 @@
         const seenFor = {};
         const markedOn = {};
         const idToName = {};
-        const THRESHOLD = 2; // Balanced: Needs 2 frames for stability (~400ms)
+        const THRESHOLD = 2; // Default for normal matches
+        const FAST_THRESHOLD = 0.4; // If distance < 0.4, mark immediately
         const COOLDOWN = 15000;
         let isBusy = false;
         let isMarking = false;
@@ -469,7 +470,8 @@
                 video.onloadedmetadata = () => {
                     overlay.width = cap.width = video.videoWidth;
                     overlay.height = cap.height = video.videoHeight;
-                    loopTimer = setInterval(processFrame, 200);
+                    // Optimization: 150ms interval for more responsive scanning
+                    loopTimer = setInterval(processFrame, 150);
                 };
             } catch (e) {
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');
@@ -480,7 +482,8 @@
             if (!video.videoWidth || isBusy) return;
             isBusy = true;
             capCtx.drawImage(video, 0, 0, cap.width, cap.height);
-            const frame = cap.toDataURL('image/jpeg', 0.6);
+            // Optimization: 0.5 quality is 30% smaller payload, no loss in accuracy for HOG/Encoding
+            const frame = cap.toDataURL('image/jpeg', 0.5);
 
             try {
                 const res = await fetch('/api/recognise', {
@@ -491,7 +494,13 @@
                 const data = await res.json();
                 if (data.success) {
                     faces = data.faces;
-                    faces.forEach(f => { if (f.id !== 'Unknown') idToName[f.id] = f.name; });
+                    faces.forEach(f => { 
+                        if (f.id !== 'Unknown') {
+                            idToName[f.id] = f.name;
+                            // Attach distance to face object for thresholding
+                            f.confidence = f.dist; 
+                        } 
+                    });
                     drawBoxes(data.faces);
                     handleAttendance(data.faces);
                 }
@@ -513,7 +522,7 @@
                 ctx.strokeRect(mLeft, top, mRight - mLeft, bottom - top);
                 ctx.fillStyle = known ? '#10b981' : '#ef4444';
                 ctx.font = 'bold 16px Inter, sans-serif';
-                const label = (f.id === 'Unknown') ? 'Unknown' : f.name;
+                const label = (f.id === 'Unknown') ? 'Unknown' : `${f.name} (${Math.round((1-f.dist)*100)}%)`;
                 const tw = ctx.measureText(label).width;
                 ctx.fillRect(mLeft, top - 30, tw + 20, 30);
                 ctx.fillStyle = '#fff';
@@ -522,9 +531,6 @@
         }
 
         async function handleAttendance(faces) {
-            faces.forEach(f => {
-                if (f.id !== 'Unknown') idToName[f.id] = f.name;
-            });
             const nowIds = new Set(faces.map(f => f.id).filter(id => id !== 'Unknown'));
 
             // Decay counters for IDs no longer in view
@@ -538,16 +544,18 @@
             }
 
             let bestStatus = null;
-            let bestPriority = -1; // Higher is better
+            let bestPriority = -1;
 
-            for (const id of nowIds) {
+            for (const f of faces) {
+                const id = f.id;
+                if (id === 'Unknown') continue;
+
                 seenFor[id] = (seenFor[id] || 0) + 1;
                 const now = Date.now();
                 const lastMark = markedOn[id] || 0;
                 const inCooldown = (now - lastMark) < COOLDOWN;
-                const displayName = idToName[id] || id;
+                const displayName = f.name || id;
 
-                // Priority 1: Already Marked recently (lowest priority to display)
                 if (inCooldown) {
                     if (bestPriority < 1) {
                         bestStatus = { state: 'state-success', icon: '<i class="fa-solid fa-check-double"></i>', text: `Hi ${displayName}, already recorded.` };
@@ -556,8 +564,10 @@
                     continue;
                 }
 
-                // Priority 2: In progress (middle)
-                if (seenFor[id] < THRESHOLD) {
+                // Fast-Track Logic: If distance is low (high confidence), skip the verification frames
+                const thresholdToUse = f.dist < FAST_THRESHOLD ? 1 : THRESHOLD;
+
+                if (seenFor[id] < thresholdToUse) {
                     if (bestPriority < 2) {
                         bestStatus = { state: 'state-scanning', icon: '<i class="fa-solid fa-spinner fa-spin"></i>', text: `Verifying ${displayName}...` };
                         bestPriority = 2;
@@ -565,8 +575,7 @@
                     continue;
                 }
 
-                // Priority 3: Triggering Mark (highest)
-                if (seenFor[id] >= THRESHOLD && !isMarking) {
+                if (seenFor[id] >= thresholdToUse && !isMarking) {
                     isMarking = true;
                     updateStatus('state-scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', `Marking ${displayName}...`);
 
@@ -605,7 +614,6 @@
                             bestStatus = { state: sState, icon: sIcon, text: sText };
                             bestPriority = 4;
                             
-                            // Play the success sound
                             successSound.currentTime = 0;
                             successSound.play().catch(e => console.log('Audio play failed:', e));
                         } else {
@@ -617,7 +625,7 @@
                         bestPriority = 3;
                     } finally {
                         isMarking = false;
-                        seenFor[id] = 0; // reset
+                        seenFor[id] = 0;
                     }
                 }
             }

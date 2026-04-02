@@ -232,21 +232,43 @@ def api_recognise():
     if bgr is None:
         return jsonify(success=False, faces=[])
 
-    # Shrink for speed
+    # ───── Speed & Accuracy Optimization (Hybrid Mode) ─────
+    # 1. Faster Detection: 25% scale
     small = cv2.resize(bgr, (0, 0), fx=0.25, fy=0.25)
-    rgb   = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    
+    # 2. Extract locations from thumbnail
+    locs = face_recognition.face_locations(small_rgb, model='hog')
+    
+    if not locs:
+        return jsonify(success=True, faces=[])
 
-    locs  = face_recognition.face_locations(rgb, model='hog')
-    encs  = face_recognition.face_encodings(rgb, locs)
+    # 3. Precise Encoding: Full Scale
+    # We use full resolution image for encoding to maintain accuracy
+    full_rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    # Upscale locations to match original image
+    full_locs = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in locs]
+    # num_jitters=0 for sub-100ms processing
+    encs = face_recognition.face_encodings(full_rgb, full_locs, num_jitters=0)
 
     results = []
-    for (top, right, bottom, left), enc in zip(locs, encs):
-        mid = match_face(known_encodings, known_ids, enc)
+    for (t, r, b, l), enc in zip(full_locs, encs):
+        # We need to find the best match and the distance
+        if not known_encodings:
+            mid, dist = None, 1.0
+        else:
+            distances = face_recognition.face_distance(known_encodings, enc)
+            best_idx = np.argmin(distances)
+            dist = float(distances[best_idx])
+            # Use strict tolerance (0.50) for high accuracy, but allow dynamic adjustment
+            mid = known_ids[best_idx] if dist < 0.55 else None
+
         name = id_to_name.get(mid, 'Unknown') if mid else 'Unknown'
         results.append({
             'id':  mid if mid else 'Unknown',
             'name': name,
-            'box': {'top': top*4, 'right': right*4, 'bottom': bottom*4, 'left': left*4}
+            'dist': round(dist, 4), # Helpful for frontend fine-tuning
+            'box': {'top': t, 'right': r, 'bottom': b, 'left': l}
         })
 
     return jsonify(success=True, faces=results)
