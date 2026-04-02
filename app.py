@@ -555,5 +555,13 @@ def export_excel():
     
     return send_file(path, as_attachment=True, download_name=f'Attendance_Report_{today.strftime("%b_%Y")}.xlsx')
 
+@app.route('/api/delete_attendance_record/<int:record_id>', methods=['POST'])
+@login_required
+def api_delete_attendance_record(record_id):
+    from database import delete_attendance_record
+    if delete_attendance_record(record_id):
+        return jsonify(success=True)
+    return jsonify(success=False, message="Failed to delete record.")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

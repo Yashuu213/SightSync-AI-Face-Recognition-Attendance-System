@@ -268,3 +268,17 @@ def update_attendance_time(record_id, login_time, logout_time):
         return False
     finally:
         conn.close()
+
+def delete_attendance_record(record_id):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    try:
+        cursor.execute(f"DELETE FROM attendance WHERE id = {p}", (record_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting attendance record: {e}")
+        return False
+    finally:
+        conn.close()
