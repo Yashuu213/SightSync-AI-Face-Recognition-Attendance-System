@@ -551,20 +551,31 @@
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
+        let selectedVoice = null;
+
+        // Warm up voices for Mobile/Android
+        function loadVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            // Prefer a natural English voice if available
+            selectedVoice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) || voices[0];
+        }
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
 
         // ── AI Voice Assistant ──
         function speak(text) {
             try {
                 if (!window.speechSynthesis) return;
-                window.speechSynthesis.cancel();
                 
-                // Small delay to ensure previous speech is fully cancelled
-                setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.rate = 1.0;
-                    utterance.pitch = 1.0;
-                    window.speechSynthesis.speak(utterance);
-                }, 50);
+                // On mobile, cancel/speak must be direct without timers to maintain gesture context
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (selectedVoice) utterance.voice = selectedVoice;
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
             } catch (e) {
                 console.warn("Speech API error:", e);
             }
@@ -610,7 +621,7 @@
                     overlay.width = cap.width = video.videoWidth;
                     overlay.height = cap.height = video.videoHeight;
                     if (loopTimer) clearInterval(loopTimer);
-                    loopTimer = setInterval(processFrame, 150);
+                    loopTimer = setInterval(processFrame, 350);
                 };
 
                 // Catch it if it's already loaded OR when it loads
@@ -626,7 +637,15 @@
                 btnStart.style.display = 'none';
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
-                speak("System Online. Monitoring attendance.");
+                
+                // Gesture Unlock for Mobile Browsers
+                speak(""); // Silent speak to "unlock" engine on mobile
+                successSound.play().then(() => {
+                    successSound.pause();
+                    successSound.currentTime = 0;
+                }).catch(() => {});
+                
+                setTimeout(() => speak("System Online. Monitoring attendance."), 100);
             } catch (e) {
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');
             }
@@ -650,7 +669,7 @@
             }
 
             capCtx.drawImage(video, 0, 0, cap.width, cap.height);
-            const frame = cap.toDataURL('image/jpeg', 0.5);
+            const frame = cap.toDataURL('image/jpeg', 0.4);
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);

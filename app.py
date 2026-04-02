@@ -238,8 +238,8 @@ def api_recognise():
     small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     
     # 2. Extract locations from thumbnail
-    # Upsample once to find smaller faces reliably
-    locs = face_recognition.face_locations(small_rgb, number_of_times_to_upsample=1, model='hog')
+    # Upsample once is slow on CPU, set to 0 as users are typically close to the camera.
+    locs = face_recognition.face_locations(small_rgb, number_of_times_to_upsample=0, model='hog')
     
     if not locs:
         return jsonify(success=True, faces=[])
