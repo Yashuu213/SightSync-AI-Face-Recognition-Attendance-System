@@ -551,33 +551,16 @@
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
-        let selectedVoice = null;
-
-        // Warm up voices for Mobile/Android
-        function loadVoices() {
-            const voices = window.speechSynthesis.getVoices();
-            // Prefer a natural English voice if available
-            selectedVoice = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) || voices[0];
-        }
-        if (window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = loadVoices;
-        }
-        loadVoices();
 
         // ── AI Voice Assistant ──
         function speak(text) {
+            if (!text) return;
             try {
-                if (!window.speechSynthesis) return;
-                
-                // On mobile, cancel/speak must be direct without timers to maintain gesture context
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                if (selectedVoice) utterance.voice = selectedVoice;
-                utterance.rate = 1.0;
-                utterance.pitch = 1.0;
-                window.speechSynthesis.speak(utterance);
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en&client=tw-ob`;
+                const audio = new Audio(url);
+                audio.play().catch(e => console.warn("Audio TTS failed:", e));
             } catch (e) {
-                console.warn("Speech API error:", e);
+                console.warn("Speech error:", e);
             }
         }
 
