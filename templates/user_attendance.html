@@ -601,6 +601,10 @@
                                 sText = `<b>Check-Out Success</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
                                 sState = 'state-out';
+                            } else if (data.type === 'ALREADY_IN') {
+                                sText = `<b>Status: Checked In</b><br>Welcome, ${displayName}!`;
+                                sIcon = '<i class="fa-solid fa-user-check"></i>';
+                                sState = 'state-info';
                             } else if (data.type === 'ALREADY_OUT') {
                                 sText = `<b>Already Logged Out</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-calendar-check"></i>';

@@ -206,6 +206,21 @@ def mark_attendance(employee_id):
             return "ALREADY_OUT", f"Already Out: {logout_val}"
 
         # Otherwise -> Check-Out
+        # SAFETY WINDOW: Prevent accidental Check-Out if it's within 30 mins of Check-In
+        try:
+            from datetime import datetime as dt
+            fmt = '%H:%M:%S'
+            t1 = dt.strptime(login_val, fmt)
+            t2 = dt.strptime(now_time, fmt)
+            diff_sec = (t2 - t1).total_seconds()
+            
+            # If less than 30 minutes (1800 seconds)
+            if 0 <= diff_sec < 1800:
+                conn.close()
+                return "ALREADY_IN", f"Already Checked-In! (Wait 30m to Out)"
+        except Exception as e:
+            print(f"Time comparison error: {e}")
+
         cursor.execute(f"UPDATE attendance SET logout_time = {p} WHERE id = {p}", (now_time, rid))
         conn.commit()
         conn.close()
