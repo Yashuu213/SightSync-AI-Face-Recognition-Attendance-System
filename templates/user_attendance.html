@@ -524,6 +524,8 @@
             </div>
         </div>
         <audio id="successSound" src="{{ url_for('static', filename='audio/success.wav') }}" preload="auto"></audio>
+        <audio id="morningSound" src="{{ url_for('static', filename='audio/Morning.wav') }}" preload="auto"></audio>
+        <audio id="byeSound" src="{{ url_for('static', filename='audio/Bye.wav') }}" preload="auto"></audio>
     </main>
 
     <script>
@@ -538,6 +540,8 @@
         const hudStatusBadge = document.getElementById('hudStatusBadge');
         const scanner = document.getElementById('scanner');
         const successSound = document.getElementById('successSound');
+        const morningSound = document.getElementById('morningSound');
+        const byeSound = document.getElementById('byeSound');
         const ctx = overlay.getContext('2d');
         const cap = document.createElement('canvas');
         const capCtx = cap.getContext('2d');
@@ -552,16 +556,11 @@
         let isMarking = false;
         let loopTimer = null;
 
-        // ── AI Voice Assistant ──
-        function speak(text) {
-            if (!text) return;
-            try {
-                const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en&client=tw-ob`;
-                const audio = new Audio(url);
-                audio.play().catch(e => console.warn("Audio TTS failed:", e));
-            } catch (e) {
-                console.warn("Speech error:", e);
-            }
+        // ── Pre-Recorded Audio Logic ──
+        function playSound(audioEl) {
+            if (!audioEl) return;
+            audioEl.currentTime = 0;
+            audioEl.play().catch(e => console.warn("Audio playback failed:", e));
         }
 
         function getGreeting() {
@@ -621,14 +620,13 @@
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
                 
-                // Gesture Unlock for Mobile Browsers
-                speak(""); // Silent speak to "unlock" engine on mobile
-                successSound.play().then(() => {
-                    successSound.pause();
-                    successSound.currentTime = 0;
-                }).catch(() => {});
-                
-                setTimeout(() => speak("System Online. Monitoring attendance."), 100);
+                // Audio Prime for Mobile Browsers
+                [successSound, morningSound, byeSound].forEach(snd => {
+                    snd.play().then(() => {
+                        snd.pause();
+                        snd.currentTime = 0;
+                    }).catch(() => {});
+                });
             } catch (e) {
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');
             }
@@ -806,36 +804,33 @@
                                 sIcon = '<i class="fa-solid fa-right-to-bracket"></i>';
                                 sState = 'state-success';
                                 showHud(displayName, 'Duty Started', 'in');
-                                speak(`Welcome ${displayName}! ${getGreeting()}, your shift has started. Have a productive day!`);
+                                playSound(morningSound);
                             } else if (data.type === 'OUT') {
                                 sText = `<b>Logout Successful</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
                                 sState = 'state-out';
                                 showHud(displayName, 'Duty Completed', 'out');
-                                speak(`Thank you ${displayName}! Logout successful. See you tomorrow.`);
+                                playSound(byeSound);
                             } else if (data.type === 'ALREADY_IN') {
                                 sText = `<b>Status: Active</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-user-check"></i>';
                                 sState = 'state-info';
                                 showHud(displayName, 'Already Logged In', 'info');
-                                speak(`${displayName}, you are already checked in. Carry on with your work.`);
+                                playSound(successSound);
                             } else if (data.type === 'ALREADY_OUT') {
                                 sText = `<b>Already Out</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-calendar-check"></i>';
                                 sState = 'state-info';
-                                speak(`${displayName}, you have already logged out for today.`);
+                                playSound(successSound);
                             } else if (data.type === 'OVERRIDE') {
                                 sText = `<b>${data.message}</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-user-clock"></i>';
                                 sState = 'state-info';
-                                speak(`${displayName}, ${data.message}`);
+                                playSound(successSound);
                             }
 
                             bestStatus = { state: sState, icon: sIcon, text: sText };
                             bestPriority = 4;
-                            
-                            successSound.currentTime = 0;
-                            successSound.play().catch(e => console.log('Audio play failed:', e));
                         } else {
                             bestStatus = { state: 'state-error', icon: '<i class="fa-solid fa-circle-xmark"></i>', text: data.message || `Error for ${displayName}` };
                             bestPriority = 3;
