@@ -557,10 +557,14 @@
             try {
                 if (!window.speechSynthesis) return;
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 1.0;
-                utterance.pitch = 1.1;
-                window.speechSynthesis.speak(utterance);
+                
+                // Small delay to ensure previous speech is fully cancelled
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+                    window.speechSynthesis.speak(utterance);
+                }, 50);
             } catch (e) {
                 console.warn("Speech API error:", e);
             }
@@ -800,13 +804,13 @@
                                 sIcon = '<i class="fa-solid fa-right-to-bracket"></i>';
                                 sState = 'state-success';
                                 showHud(displayName, 'Duty Started', 'in');
-                                speak(`${getGreeting()}, ${displayName}. Your shift has started. Have a productive day!`);
+                                speak(`Welcome ${displayName}! ${getGreeting()}, your shift has started. Have a productive day!`);
                             } else if (data.type === 'OUT') {
                                 sText = `<b>Logout Successful</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
                                 sState = 'state-out';
                                 showHud(displayName, 'Duty Completed', 'out');
-                                speak(`Good Work, ${displayName}! Logout successful. See you tomorrow.`);
+                                speak(`Thank you ${displayName}! Logout successful. See you tomorrow.`);
                             } else if (data.type === 'ALREADY_IN') {
                                 sText = `<b>Status: Active</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-user-check"></i>';
