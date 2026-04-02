@@ -277,6 +277,93 @@
             text-align: center;
         }
 
+        /* ── Modern Pulse HUD ── */
+        .hud-card {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform: translateX(350px);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+        }
+
+        .hud-card.active {
+            transform: translateX(0);
+        }
+
+        .hud-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-avatar {
+            width: 44px;
+            height: 44px;
+            background: var(--primary-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .hud-info h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .hud-info p {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .hud-badge {
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        .hud-badge.in { background: #d1fae5; color: #065f46; }
+        .hud-badge.out { background: #ffedd5; color: #9a3412; }
+        .hud-badge.info { background: #e0f2fe; color: #0369a1; }
+
+        /* ── Pulse Glow Effects ── */
+        .camera-wrapper::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 32px;
+            background: transparent;
+            z-index: -1;
+            transition: all 0.5s;
+        }
+
+        .state-success .camera-wrapper::after { background: var(--success); filter: blur(20px); opacity: 0.3; }
+        .state-out .camera-wrapper::after { background: var(--accent); filter: blur(20px); opacity: 0.3; }
+        .state-info .camera-wrapper::after { background: var(--primary); filter: blur(20px); opacity: 0.3; }
+
+        /* ── Layout Overrides ── */
+        .camera-wrapper {
+            border: none; /* Cleaner modern look */
+        }
+
         /* ── Media Queries ── */
 
         /* Tablets (Horizontal layout) */
@@ -398,6 +485,20 @@
                     <video id="video" autoplay playsinline muted></video>
                     <canvas id="overlay"></canvas>
                     <div class="scanner-line" id="scanner"></div>
+
+                    <!-- AI HUD Card -->
+                    <div class="hud-card" id="hudCard">
+                        <div class="hud-header">
+                            <div class="hud-avatar" id="hudAvatar">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div class="hud-info">
+                                <h4 id="hudName">Identifying...</h4>
+                                <p id="hudDetail">Scanning face...</p>
+                            </div>
+                        </div>
+                        <div class="hud-badge in" id="hudStatusBadge">SECURE</div>
+                    </div>
                 </div>
             </div>
 
@@ -431,11 +532,10 @@
         const btnStart = document.getElementById('btnStart');
         const statusText = document.getElementById('statusText');
         const statusIcon = document.getElementById('statusIcon');
-        const statusCard = document.getElementById('statusCard');
-        const scanner = document.getElementById('scanner');
-        const ctx = overlay.getContext('2d');
-        const cap = document.createElement('canvas');
-        const capCtx = cap.getContext('2d');
+        const hudCard = document.getElementById('hudCard');
+        const hudName = document.getElementById('hudName');
+        const hudDetail = document.getElementById('hudDetail');
+        const hudStatusBadge = document.getElementById('hudStatusBadge');
 
         const seenFor = {};
         const markedOn = {};
@@ -446,6 +546,36 @@
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
+
+        // ── AI Voice Assistant ──
+        function speak(text) {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function getGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) return "Good Morning";
+            if (hour < 17) return "Good Afternoon";
+            return "Good Evening";
+        }
+
+        function showHud(name, status, type = 'info') {
+            document.getElementById('hudName').textContent = name;
+            document.getElementById('hudDetail').textContent = status;
+            const badge = document.getElementById('hudStatusBadge');
+            badge.textContent = type === 'in' ? 'SHIFT STARTED' : (type === 'out' ? 'WORK COMPLETED' : 'SECURE');
+            badge.className = 'hud-badge ' + type;
+            document.getElementById('hudCard').classList.add('active');
+            
+            setTimeout(() => {
+                document.getElementById('hudCard').classList.remove('active');
+            }, 4000);
+        }
 
         function updateClock() {
             const now = new Date();
@@ -466,6 +596,7 @@
                 btnStart.style.display = 'none';
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
+                speak("System Online. Monitoring attendance.");
 
                 video.onloadedmetadata = () => {
                     overlay.width = cap.width = video.videoWidth;
@@ -512,21 +643,43 @@
         function drawBoxes(faces) {
             const W = overlay.width;
             ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+            // Pulse effect for the scanning ring
+            const pulse = 10 + Math.sin(Date.now() / 200) * 5;
+
             faces.forEach(f => {
                 const { top, right, bottom, left } = f.box;
-                const mLeft = W - right;
-                const mRight = W - left;
+                // Reverse X because of mirror video
+                const centerX = W - (left + (right - left) / 2);
+                const centerY = top + (bottom - top) / 2;
+                const radius = (right - left) / 1.6;
                 const known = f.id !== 'Unknown';
+
+                // ── Outer Pulsing Ring ──
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius + pulse, 0, Math.PI * 2);
                 ctx.strokeStyle = known ? '#10b981' : '#ef4444';
                 ctx.lineWidth = 4;
-                ctx.strokeRect(mLeft, top, mRight - mLeft, bottom - top);
+                ctx.setLineDash([20, 10]); // Modern dashed look
+                ctx.lineDashOffset = -Date.now() / 50;
+                ctx.stroke();
+
+                // ── Inner Static Ring ──
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.setLineDash([]);
+                ctx.strokeStyle = known ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // ── Identity Label ──
                 ctx.fillStyle = known ? '#10b981' : '#ef4444';
                 ctx.font = 'bold 16px Inter, sans-serif';
                 const label = (f.id === 'Unknown') ? 'Unknown' : `${f.name} (${Math.round((1-f.dist)*100)}%)`;
                 const tw = ctx.measureText(label).width;
-                ctx.fillRect(mLeft, top - 30, tw + 20, 30);
+                ctx.fillRect(centerX - (tw / 2) - 10, top - 45, tw + 20, 30);
                 ctx.fillStyle = '#fff';
-                ctx.fillText(label, mLeft + 10, top - 10);
+                ctx.fillText(label, centerX - (tw / 2), top - 25);
             });
         }
 
@@ -594,25 +747,33 @@
                             let sText = `Welcome, ${displayName}!`;
 
                             if (data.type === 'IN') {
-                                sText = `<b>Check-In Success</b><br>${displayName}`;
+                                sText = `<b>Login Successful</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-right-to-bracket"></i>';
                                 sState = 'state-success';
+                                showHud(displayName, 'Duty Started', 'in');
+                                speak(`${getGreeting()}, ${displayName}. Your shift has started. Have a productive day!`);
                             } else if (data.type === 'OUT') {
-                                sText = `<b>Check-Out Success</b><br>${displayName}`;
+                                sText = `<b>Logout Successful</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
                                 sState = 'state-out';
+                                showHud(displayName, 'Duty Completed', 'out');
+                                speak(`Good Work, ${displayName}! Logout successful. See you tomorrow.`);
                             } else if (data.type === 'ALREADY_IN') {
-                                sText = `<b>Status: Checked In</b><br>Welcome, ${displayName}!`;
+                                sText = `<b>Status: Active</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-user-check"></i>';
                                 sState = 'state-info';
+                                showHud(displayName, 'Already Logged In', 'info');
+                                speak(`${displayName}, you are already checked in. Carry on with your work.`);
                             } else if (data.type === 'ALREADY_OUT') {
-                                sText = `<b>Already Logged Out</b><br>${displayName}`;
+                                sText = `<b>Already Out</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-calendar-check"></i>';
                                 sState = 'state-info';
+                                speak(`${displayName}, you have already logged out for today.`);
                             } else if (data.type === 'OVERRIDE') {
                                 sText = `<b>${data.message}</b><br>${displayName}`;
                                 sIcon = '<i class="fa-solid fa-user-clock"></i>';
                                 sState = 'state-info';
+                                speak(`${displayName}, ${data.message}`);
                             }
 
                             bestStatus = { state: sState, icon: sIcon, text: sText };
