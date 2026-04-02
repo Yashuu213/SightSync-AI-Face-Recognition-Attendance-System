@@ -233,12 +233,13 @@ def api_recognise():
         return jsonify(success=False, faces=[])
 
     # ───── Speed & Accuracy Optimization (Hybrid Mode) ─────
-    # 1. Faster Detection: 25% scale
-    small = cv2.resize(bgr, (0, 0), fx=0.25, fy=0.25)
+    # 1. Faster Detection: 50% scale (320x240 is ideal for HOG)
+    small = cv2.resize(bgr, (0, 0), fx=0.5, fy=0.5)
     small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     
     # 2. Extract locations from thumbnail
-    locs = face_recognition.face_locations(small_rgb, model='hog')
+    # Upsample once to find smaller faces reliably
+    locs = face_recognition.face_locations(small_rgb, number_of_times_to_upsample=1, model='hog')
     
     if not locs:
         return jsonify(success=True, faces=[])
@@ -246,8 +247,8 @@ def api_recognise():
     # 3. Precise Encoding: Full Scale
     # We use full resolution image for encoding to maintain accuracy
     full_rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    # Upscale locations to match original image
-    full_locs = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in locs]
+    # Upscale locations to match original image (2x because of 0.5 scale)
+    full_locs = [(t*2, r*2, b*2, l*2) for (t, r, b, l) in locs]
     # num_jitters=0 for sub-100ms processing
     encs = face_recognition.face_encodings(full_rgb, full_locs, num_jitters=0)
 

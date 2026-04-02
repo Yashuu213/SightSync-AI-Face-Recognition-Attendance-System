@@ -536,6 +536,11 @@
         const hudName = document.getElementById('hudName');
         const hudDetail = document.getElementById('hudDetail');
         const hudStatusBadge = document.getElementById('hudStatusBadge');
+        const scanner = document.getElementById('scanner');
+        const successSound = document.getElementById('successSound');
+        const ctx = overlay.getContext('2d');
+        const cap = document.createElement('canvas');
+        const capCtx = cap.getContext('2d');
 
         const seenFor = {};
         const markedOn = {};
@@ -549,12 +554,16 @@
 
         // ── AI Voice Assistant ──
         function speak(text) {
-            if (!window.speechSynthesis) return;
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.1;
-            window.speechSynthesis.speak(utterance);
+            try {
+                if (!window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.warn("Speech API error:", e);
+            }
         }
 
         function getGreeting() {
@@ -592,68 +601,104 @@
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: 640, height: 480 }
                 });
+                
+                const startScanning = () => {
+                    overlay.width = cap.width = video.videoWidth;
+                    overlay.height = cap.height = video.videoHeight;
+                    if (loopTimer) clearInterval(loopTimer);
+                    loopTimer = setInterval(processFrame, 150);
+                };
+
+                // Catch it if it's already loaded OR when it loads
+                if (video.readyState >= 1) {
+                    startScanning();
+                } else {
+                    video.onloadedmetadata = startScanning;
+                    // Last resort: Fallback timer if metadata doesn't fire
+                    setTimeout(startScanning, 2000);
+                }
+
                 video.srcObject = stream;
                 btnStart.style.display = 'none';
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
                 speak("System Online. Monitoring attendance.");
-
-                video.onloadedmetadata = () => {
-                    overlay.width = cap.width = video.videoWidth;
-                    overlay.height = cap.height = video.videoHeight;
-                    // Optimization: 150ms interval for more responsive scanning
-                    loopTimer = setInterval(processFrame, 150);
-                };
             } catch (e) {
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');
             }
         });
 
         async function processFrame() {
-            if (!video.videoWidth || isBusy) return;
+            if (!video.videoWidth) return;
+            
+            // Auto-sync dimensions
+            if (overlay.width !== video.videoWidth) {
+                overlay.width = cap.width = video.videoWidth;
+                overlay.height = cap.height = video.videoHeight;
+            }
+
+            if (isBusy) return;
             isBusy = true;
+
+            // Simple "Search" fallback if no data yet
+            if (statusText.textContent === 'Monitoring...') {
+                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+            }
+
             capCtx.drawImage(video, 0, 0, cap.width, cap.height);
-            // Optimization: 0.5 quality is 30% smaller payload, no loss in accuracy for HOG/Encoding
             const frame = cap.toDataURL('image/jpeg', 0.5);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
             try {
                 const res = await fetch('/api/recognise', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ frame })
+                    body: JSON.stringify({ frame }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+                
                 const data = await res.json();
                 if (data.success) {
-                    faces = data.faces;
-                    faces.forEach(f => { 
-                        if (f.id !== 'Unknown') {
+                    const facesData = data.faces || [];
+                    facesData.forEach(f => {
+                        if (f && f.id !== 'Unknown') {
                             idToName[f.id] = f.name;
-                            // Attach distance to face object for thresholding
-                            f.confidence = f.dist; 
-                        } 
+                            f.confidence = f.dist;
+                        }
                     });
-                    drawBoxes(data.faces);
-                    handleAttendance(data.faces);
+
+                    drawBoxes(facesData);
+                    handleAttendance(facesData);
                 }
-            } catch (e) { } finally {
+            } catch (e) {
+                console.warn("Processing stalled or failed:", e);
+                // On error, revert to searching status to keep user informed
+                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+            } finally {
                 isBusy = false;
             }
         }
 
         function drawBoxes(faces) {
+            if (!faces || !Array.isArray(faces)) return;
             const W = overlay.width;
             ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-            // Pulse effect for the scanning ring
             const pulse = 10 + Math.sin(Date.now() / 200) * 5;
 
             faces.forEach(f => {
-                const { top, right, bottom, left } = f.box;
-                // Reverse X because of mirror video
+                const box = f.box || { top:0, right:0, bottom:0, left:0 };
+                const { top, right, bottom, left } = box;
+                
                 const centerX = W - (left + (right - left) / 2);
                 const centerY = top + (bottom - top) / 2;
                 const radius = (right - left) / 1.6;
                 const known = f.id !== 'Unknown';
+
+                if (isNaN(centerX) || isNaN(centerY) || isNaN(radius)) return;
 
                 // ── Outer Pulsing Ring ──
                 ctx.beginPath();
@@ -692,7 +737,11 @@
             });
 
             if (nowIds.size === 0) {
-                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                if (faces.length > 0) {
+                    updateStatus('warning', '<i class="fa-solid fa-circle-question"></i>', 'Unknown face detected.');
+                } else {
+                    updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                }
                 return;
             }
 
