@@ -555,9 +555,9 @@
         const seenFor = {};
         const markedOn = {};
         const idToName = {};
-        const THRESHOLD = 2; // Default for normal matches
-        const FAST_THRESHOLD = 0.4; // If distance < 0.4, mark immediately
-        const COOLDOWN = 15000;
+        const THRESHOLD = 1; // Turbo: Mark immediately on 1st match
+        const FAST_THRESHOLD = 0.5; 
+        const COOLDOWN = 3000; // Turbo Cooldown: 3 seconds (as requested)
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
@@ -616,7 +616,7 @@
                     overlay.width = cap.width = video.videoWidth || 640;
                     overlay.height = cap.height = video.videoHeight || 480;
                     if (loopTimer) clearInterval(loopTimer);
-                    loopTimer = setInterval(processFrame, 350);
+                    loopTimer = setInterval(processFrame, 250); // Faster Scan Rate (4 FPS)
                 };
 
                 if (video.readyState >= 2) {
@@ -670,14 +670,10 @@
         // ── Automation Sleep (Page Visibility API) ──
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
-                console.log("Tab hidden: pausing camera to save resources.");
-                if (isKioskRunning) {
-                    stopKiosk(true); // stop hardware but remember we should be running
-                }
+                if (isKioskRunning) stopKiosk(true);
             } else {
-                console.log("Tab visible: resuming kiosk.");
                 if (isKioskRunning) {
-                    isKioskRunning = false; // Reset to allow startKiosk to trigger
+                    isKioskRunning = false;
                     startKiosk();
                 }
             }
@@ -686,7 +682,6 @@
         async function processFrame() {
             if (!video.videoWidth || !isKioskRunning) return;
             
-            // Auto-sync dimensions
             if (overlay.width !== video.videoWidth) {
                 overlay.width = cap.width = video.videoWidth;
                 overlay.height = cap.height = video.videoHeight;
@@ -694,11 +689,6 @@
 
             if (isBusy) return;
             isBusy = true;
-
-            // Simple "Search" fallback if no data yet
-            if (statusText.textContent === 'Monitoring...') {
-                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
-            }
 
             capCtx.drawImage(video, 0, 0, cap.width, cap.height);
             const frame = cap.toDataURL('image/jpeg', 0.4);
@@ -730,7 +720,6 @@
                 }
             } catch (e) {
                 console.warn("Processing stalled or failed:", e);
-                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
             } finally {
                 isBusy = false;
             }
@@ -754,16 +743,14 @@
 
                 if (isNaN(centerX) || isNaN(centerY) || isNaN(radius)) return;
 
-                // ── Outer Pulsing Ring ──
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius + pulse, 0, Math.PI * 2);
                 ctx.strokeStyle = known ? '#10b981' : '#ef4444';
                 ctx.lineWidth = 4;
-                ctx.setLineDash([20, 10]); // Modern dashed look
+                ctx.setLineDash([20, 10]);
                 ctx.lineDashOffset = -Date.now() / 50;
                 ctx.stroke();
 
-                // ── Inner Static Ring ──
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                 ctx.setLineDash([]);
@@ -771,7 +758,6 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // ── Identity Label ──
                 ctx.fillStyle = known ? '#10b981' : '#ef4444';
                 ctx.font = 'bold 16px Inter, sans-serif';
                 const label = (f.id === 'Unknown') ? 'Unknown' : `${f.name} (${Math.round((1-f.dist)*100)}%)`;
@@ -790,10 +776,10 @@
             });
 
             if (nowIds.size === 0) {
-                if (faces.length > 0) {
+                if (faces.length > 0 && !isMarking) {
                     updateStatus('warning', '<i class="fa-solid fa-circle-question"></i>', 'Unknown face detected.');
-                } else {
-                    updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                } else if (!isMarking) {
+                    updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
                 }
                 return;
             }
@@ -819,17 +805,7 @@
                     continue;
                 }
 
-                const thresholdToUse = f.dist < FAST_THRESHOLD ? 1 : THRESHOLD;
-
-                if (seenFor[id] < thresholdToUse) {
-                    if (bestPriority < 2) {
-                        bestStatus = { state: 'state-scanning', icon: '<i class="fa-solid fa-spinner fa-spin"></i>', text: `Verifying ${displayName}...` };
-                        bestPriority = 2;
-                    }
-                    continue;
-                }
-
-                if (seenFor[id] >= thresholdToUse && !isMarking) {
+                if (seenFor[id] >= THRESHOLD && !isMarking) {
                     isMarking = true;
                     updateStatus('state-scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', `Marking ${displayName}...`);
 
@@ -863,7 +839,7 @@
 
                             updateStatus(sState, sIcon, sText);
                             setTimeout(() => {
-                                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                                if (isKioskRunning) updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
                             }, 5000);
                         } else {
                             updateStatus('error', '<i class="fa-solid fa-circle-exclamation"></i>', data.message || 'Error marking attendance.');
@@ -871,7 +847,7 @@
                     } catch (e) {
                         console.error("Mark failed:", e);
                     } finally {
-                        setTimeout(() => { isMarking = false; }, 3000);
+                        setTimeout(() => { isMarking = false; }, 800); // Reset Global Block in 0.8s
                     }
                 }
             }
