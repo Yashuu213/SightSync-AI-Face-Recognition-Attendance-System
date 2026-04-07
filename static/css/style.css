@@ -55,7 +55,7 @@ a {
 }
 
 .brand img {
-  height: 32px;
+  height: 48px;
   width: auto;
 }
 
@@ -153,6 +153,12 @@ a {
   font-size: .82rem;
   color: var(--muted);
   margin-top: 4px;
+}
+
+.card-header.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .card-body {
@@ -292,6 +298,20 @@ a {
   border-radius: 99px;
   font-size: .75rem;
   font-weight: 600;
+}
+
+/* ── Grid Utilities ──────────────────────────────────── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1100px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Forms ───────────────────────────────────────────── */
@@ -455,11 +475,11 @@ a {
   .topbar {
     padding: 15px 20px;
   }
-
+  
   .topbar-right {
     display: none; /* Hide admin badge on mobile to save space */
   }
-
+  
   .page-content {
     padding: 20px 15px;
   }
@@ -475,11 +495,11 @@ a {
   .mobile-menu-btn {
     display: block;
   }
-
+  
   .card-header {
     padding: 15px;
   }
-
+  
   .card-body {
     padding: 15px;
   }

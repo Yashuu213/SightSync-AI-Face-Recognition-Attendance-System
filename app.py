@@ -92,13 +92,22 @@ def index():
         return redirect(url_for('user_panel'))
         
     employees = get_all_employees()
-    all_logs   = get_attendance_logs()
-    today      = datetime.now().strftime('%Y-%m-%d')
-    today_logs = [l for l in all_logs if l['date'] == today]
+    today = datetime.now().strftime('%Y-%m-%d')
+    all_logs = get_attendance_logs() # All logs for "Recent Attendance" table
+    
+    # Get only today's logs for status overview
+    today_records = get_attendance_logs(today)
+    present_ids = {str(l['employee_id']) for l in today_records}
+    
+    present_list = today_records
+    absent_list = [emp for emp in employees if str(emp['employee_id']) not in present_ids]
     
     return render_template('index.html', 
                            total_employees=len(employees),
-                           present_today=len(today_logs),
+                           present_today=len(present_list),
+                           absent_today=len(absent_list),
+                           present_list=present_list,
+                           absent_list=absent_list,
                            recent_logs=all_logs[:8])
 
 @app.route('/employees')
@@ -233,13 +242,13 @@ def api_recognise():
         return jsonify(success=False, faces=[])
 
     # ───── Speed & Accuracy Optimization (Hybrid Mode) ─────
-    # 1. Faster Detection: 50% scale (320x240 is ideal for HOG)
-    small = cv2.resize(bgr, (0, 0), fx=0.5, fy=0.5)
+    # 1. Faster Detection: 25% scale (Ideal for real-time kiosk)
+    small = cv2.resize(bgr, (0, 0), fx=0.25, fy=0.25)
     small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     
     # 2. Extract locations from thumbnail
-    # Upsample once is slow on CPU, set to 0 as users are typically close to the camera.
-    locs = face_recognition.face_locations(small_rgb, number_of_times_to_upsample=0, model='hog')
+    # Upsample once allows detecting smaller faces even at 25% scale
+    locs = face_recognition.face_locations(small_rgb, number_of_times_to_upsample=1, model='hog')
     
     if not locs:
         return jsonify(success=True, faces=[])
@@ -247,8 +256,8 @@ def api_recognise():
     # 3. Precise Encoding: Full Scale
     # We use full resolution image for encoding to maintain accuracy
     full_rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    # Upscale locations to match original image (2x because of 0.5 scale)
-    full_locs = [(t*2, r*2, b*2, l*2) for (t, r, b, l) in locs]
+    # Upscale locations to match original image (4x because of 0.25 scale)
+    full_locs = [(t*4, r*4, b*4, l*4) for (t, r, b, l) in locs]
     # num_jitters=0 for sub-100ms processing
     encs = face_recognition.face_encodings(full_rgb, full_locs, num_jitters=0)
 
@@ -261,8 +270,8 @@ def api_recognise():
             distances = face_recognition.face_distance(known_encodings, enc)
             best_idx = np.argmin(distances)
             dist = float(distances[best_idx])
-            # Use strict tolerance (0.50) for high accuracy, but allow dynamic adjustment
-            mid = known_ids[best_idx] if dist < 0.55 else None
+            # Use strict tolerance (0.50) for high accuracy
+            mid = known_ids[best_idx] if dist < 0.50 else None
 
         name = id_to_name.get(mid, 'Unknown') if mid else 'Unknown'
         results.append({

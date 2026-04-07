@@ -206,7 +206,7 @@ def mark_attendance(employee_id):
             return "ALREADY_OUT", f"Already Out: {logout_val}"
 
         # Otherwise -> Check-Out
-        # SAFETY WINDOW: Prevent accidental Check-Out if it's within 30 mins of Check-In
+        # SAFETY WINDOW: Reduced to 1 minute to allow quick testing of different sounds
         try:
             from datetime import datetime as dt
             fmt = '%H:%M:%S'
@@ -214,10 +214,10 @@ def mark_attendance(employee_id):
             t2 = dt.strptime(now_time, fmt)
             diff_sec = (t2 - t1).total_seconds()
             
-            # If less than 30 minutes (1800 seconds)
-            if 0 <= diff_sec < 1800:
+            # If less than 1 minute (60 seconds)
+            if 0 <= diff_sec < 60:
                 conn.close()
-                return "ALREADY_IN", f"Already Checked-In! (Wait 30m to Out)"
+                return "ALREADY_IN", f"Already Checked-In! (Wait 1m to Out)"
         except Exception as e:
             print(f"Time comparison error: {e}")
 

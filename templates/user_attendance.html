@@ -264,7 +264,8 @@
         }
 
         .btn-kiosk:hover {
-            background: var(--primary-dark);
+            background: var(--primary);
+            opacity: 0.9;
             transform: translateY(-2px);
         }
 
@@ -512,8 +513,12 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button class="btn-kiosk" id="btnStart">
+                    <button class="btn-kiosk" id="btnStart" onclick="startKiosk()">
                         <i class="fa-solid fa-play"></i> Start Attendance
+                    </button>
+                    <!-- Stop button for manual control -->
+                    <button class="btn-kiosk" id="btnStop" onclick="stopKiosk()" style="display: none; background: #64748b;">
+                        <i class="fa-solid fa-stop"></i> Stop Attendance
                     </button>
                 </div>
 
@@ -532,6 +537,7 @@
         const video = document.getElementById('video');
         const overlay = document.getElementById('overlay');
         const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
         const statusText = document.getElementById('statusText');
         const statusIcon = document.getElementById('statusIcon');
         const hudCard = document.getElementById('hudCard');
@@ -555,6 +561,8 @@
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
+        let isKioskRunning = false;
+        let currentStream = null;
 
         // ── Pre-Recorded Audio Logic ──
         function playSound(audioEl) {
@@ -593,47 +601,90 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        btnStart.addEventListener('click', async () => {
+        async function startKiosk() {
+            if (isKioskRunning) return;
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: 640, height: 480 }
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
                 });
                 
+                currentStream = stream;
+                video.srcObject = stream;
+                
                 const startScanning = () => {
-                    overlay.width = cap.width = video.videoWidth;
-                    overlay.height = cap.height = video.videoHeight;
+                    overlay.width = cap.width = video.videoWidth || 640;
+                    overlay.height = cap.height = video.videoHeight || 480;
                     if (loopTimer) clearInterval(loopTimer);
                     loopTimer = setInterval(processFrame, 350);
                 };
 
-                // Catch it if it's already loaded OR when it loads
-                if (video.readyState >= 1) {
+                if (video.readyState >= 2) {
                     startScanning();
                 } else {
-                    video.onloadedmetadata = startScanning;
-                    // Last resort: Fallback timer if metadata doesn't fire
-                    setTimeout(startScanning, 2000);
+                    video.onloadeddata = startScanning;
+                    setTimeout(startScanning, 2000); // Fallback
                 }
 
-                video.srcObject = stream;
+                isKioskRunning = true;
                 btnStart.style.display = 'none';
+                btnStop.style.display = 'flex';
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
                 
-                // Audio Prime for Mobile Browsers
+                // Audio Prime
                 [successSound, morningSound, byeSound].forEach(snd => {
-                    snd.play().then(() => {
-                        snd.pause();
-                        snd.currentTime = 0;
-                    }).catch(() => {});
+                    snd.play().then(() => { snd.pause(); snd.currentTime = 0; }).catch(() => {});
                 });
             } catch (e) {
+                console.error(e);
                 updateStatus('error', '<i class="fa-solid fa-circle-xmark"></i>', 'Camera access denied.');
+            }
+        }
+
+        function stopKiosk(keepState = false) {
+            if (loopTimer) {
+                clearInterval(loopTimer);
+                loopTimer = null;
+            }
+            
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            video.srcObject = null;
+            scanner.style.display = 'none';
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            
+            if (!keepState) {
+                isKioskRunning = false;
+                btnStart.style.display = 'flex';
+                btnStop.style.display = 'none';
+                updateStatus('idle', '<i class="fa-solid fa-camera"></i>', 'Ready to Start');
+            } else {
+                updateStatus('info', '<i class="fa-solid fa-moon"></i>', 'Kiosk Sleep Mode');
+            }
+        }
+
+        // ── Automation Sleep (Page Visibility API) ──
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                console.log("Tab hidden: pausing camera to save resources.");
+                if (isKioskRunning) {
+                    stopKiosk(true); // stop hardware but remember we should be running
+                }
+            } else {
+                console.log("Tab visible: resuming kiosk.");
+                if (isKioskRunning) {
+                    isKioskRunning = false; // Reset to allow startKiosk to trigger
+                    startKiosk();
+                }
             }
         });
 
         async function processFrame() {
-            if (!video.videoWidth) return;
+            if (!video.videoWidth || !isKioskRunning) return;
             
             // Auto-sync dimensions
             if (overlay.width !== video.videoWidth) {
@@ -679,7 +730,6 @@
                 }
             } catch (e) {
                 console.warn("Processing stalled or failed:", e);
-                // On error, revert to searching status to keep user informed
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
             } finally {
                 isBusy = false;
@@ -735,7 +785,6 @@
         async function handleAttendance(faces) {
             const nowIds = new Set(faces.map(f => f.id).filter(id => id !== 'Unknown'));
 
-            // Decay counters for IDs no longer in view
             Object.keys(seenFor).forEach(id => {
                 if (!nowIds.has(id)) seenFor[id] = Math.max(0, seenFor[id] - 1);
             });
@@ -770,7 +819,6 @@
                     continue;
                 }
 
-                // Fast-Track Logic: If distance is low (high confidence), skip the verification frames
                 const thresholdToUse = f.dist < FAST_THRESHOLD ? 1 : THRESHOLD;
 
                 if (seenFor[id] < thresholdToUse) {
@@ -798,64 +846,48 @@
                             let sIcon = '<i class="fa-solid fa-circle-check"></i>';
                             let sState = 'state-success';
                             let sText = `Welcome, ${displayName}!`;
-
+                            
                             if (data.type === 'IN') {
-                                sText = `<b>Login Successful</b><br>${displayName}`;
-                                sIcon = '<i class="fa-solid fa-right-to-bracket"></i>';
-                                sState = 'state-success';
-                                showHud(displayName, 'Duty Started', 'in');
                                 playSound(morningSound);
+                                showHud(displayName, 'SHIFT STARTED: ' + getGreeting(), 'in');
                             } else if (data.type === 'OUT') {
-                                sText = `<b>Logout Successful</b><br>${displayName}`;
-                                sIcon = '<i class="fa-solid fa-right-from-bracket"></i>';
-                                sState = 'state-out';
-                                showHud(displayName, 'Duty Completed', 'out');
                                 playSound(byeSound);
-                            } else if (data.type === 'ALREADY_IN') {
-                                sText = `<b>Status: Active</b><br>${displayName}`;
-                                sIcon = '<i class="fa-solid fa-user-check"></i>';
-                                sState = 'state-info';
-                                showHud(displayName, 'Already Logged In', 'info');
+                                showHud(displayName, 'WORK COMPLETED: Have a nice day!', 'out');
+                                sState = 'state-out';
+                                sIcon = '<i class="fa-solid fa-door-open"></i>';
+                                sText = `Goodbye, ${displayName}!`;
+                            } else {
                                 playSound(successSound);
-                            } else if (data.type === 'ALREADY_OUT') {
-                                sText = `<b>Already Out</b><br>${displayName}`;
-                                sIcon = '<i class="fa-solid fa-calendar-check"></i>';
-                                sState = 'state-info';
-                                playSound(successSound);
-                            } else if (data.type === 'OVERRIDE') {
-                                sText = `<b>${data.message}</b><br>${displayName}`;
-                                sIcon = '<i class="fa-solid fa-user-clock"></i>';
-                                sState = 'state-info';
-                                playSound(successSound);
+                                showHud(displayName, 'LOGGED: ' + data.message, 'info');
                             }
 
-                            bestStatus = { state: sState, icon: sIcon, text: sText };
-                            bestPriority = 4;
+                            updateStatus(sState, sIcon, sText);
+                            setTimeout(() => {
+                                updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Searching for faces...');
+                            }, 5000);
                         } else {
-                            bestStatus = { state: 'state-error', icon: '<i class="fa-solid fa-circle-xmark"></i>', text: data.message || `Error for ${displayName}` };
-                            bestPriority = 3;
+                            updateStatus('error', '<i class="fa-solid fa-circle-exclamation"></i>', data.message || 'Error marking attendance.');
                         }
                     } catch (e) {
-                        bestStatus = { state: 'state-error', icon: '<i class="fa-solid fa-triangle-exclamation"></i>', text: 'Network Error' };
-                        bestPriority = 3;
+                        console.error("Mark failed:", e);
                     } finally {
-                        isMarking = false;
-                        seenFor[id] = 0;
+                        setTimeout(() => { isMarking = false; }, 3000);
                     }
                 }
             }
 
-            if (bestStatus) {
+            if (bestStatus && !isMarking) {
                 updateStatus(bestStatus.state, bestStatus.icon, bestStatus.text);
             }
         }
 
-        function updateStatus(state, icon, text) {
-            statusCard.className = 'status-card state-' + state;
-            statusIcon.innerHTML = icon;
+        function updateStatus(stateCls, iconHtml, text) {
+            document.body.className = stateCls || 'state-idle';
+            statusIcon.innerHTML = iconHtml;
             statusText.innerHTML = text;
         }
     </script>
 </body>
 
 </html>
+ Riverside
