@@ -278,6 +278,33 @@
             text-align: center;
         }
 
+        /* ── Exit Button Overlay ── */
+        .btn-exit {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            display: none; /* Only show when running */
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            z-index: 30;
+            transition: all 0.3s;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .btn-exit:hover {
+            background: rgba(239, 68, 68, 0.8);
+            transform: scale(1.05);
+        }
+
         /* ── Modern Pulse HUD ── */
         .hud-card {
             position: absolute;
@@ -484,6 +511,12 @@
             <div class="camera-side">
                 <div class="camera-wrapper">
                     <video id="video" autoplay playsinline muted></video>
+
+                    <!-- Manual Exit Button Overlay -->
+                    <button id="btnExitOverlay" class="btn-exit" onclick="stopKiosk()">
+                        <i class="fa-solid fa-arrow-left"></i> Exit
+                    </button>
+
                     <canvas id="overlay"></canvas>
                     <div class="scanner-line" id="scanner"></div>
 
@@ -538,6 +571,7 @@
         const overlay = document.getElementById('overlay');
         const btnStart = document.getElementById('btnStart');
         const btnStop = document.getElementById('btnStop');
+        const btnExitOverlay = document.getElementById('btnExitOverlay');
         const statusText = document.getElementById('statusText');
         const statusIcon = document.getElementById('statusIcon');
         const hudCard = document.getElementById('hudCard');
@@ -557,12 +591,13 @@
         const idToName = {};
         const THRESHOLD = 1; // Turbo: Mark immediately on 1st match
         const FAST_THRESHOLD = 0.5; 
-        const COOLDOWN = 3000; // Turbo Cooldown: 3 seconds (as requested)
+        const COOLDOWN = 3000; // Turbo Cooldown: 3 seconds
         let isBusy = false;
         let isMarking = false;
         let loopTimer = null;
         let isKioskRunning = false;
         let currentStream = null;
+        let sessionTimeout = null;
 
         // ── Pre-Recorded Audio Logic ──
         function playSound(audioEl) {
@@ -629,9 +664,18 @@
                 isKioskRunning = true;
                 btnStart.style.display = 'none';
                 btnStop.style.display = 'flex';
+                btnExitOverlay.style.display = 'flex';
                 scanner.style.display = 'block';
                 updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
-                
+
+                // ── 5-Minute Auto-Stop logic ──
+                if (sessionTimeout) clearTimeout(sessionTimeout);
+                sessionTimeout = setTimeout(() => {
+                    if (isKioskRunning) {
+                        stopKiosk();
+                    }
+                }, 300000); // 5 minutes
+
                 // Audio Prime
                 [successSound, morningSound, byeSound].forEach(snd => {
                     snd.play().then(() => { snd.pause(); snd.currentTime = 0; }).catch(() => {});
@@ -648,6 +692,11 @@
                 loopTimer = null;
             }
             
+            if (sessionTimeout) {
+                clearTimeout(sessionTimeout);
+                sessionTimeout = null;
+            }
+
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
                 currentStream = null;
@@ -655,6 +704,7 @@
             
             video.srcObject = null;
             scanner.style.display = 'none';
+            btnExitOverlay.style.display = 'none';
             ctx.clearRect(0, 0, overlay.width, overlay.height);
             
             if (!keepState) {
@@ -847,7 +897,7 @@
                     } catch (e) {
                         console.error("Mark failed:", e);
                     } finally {
-                        setTimeout(() => { isMarking = false; }, 800); // Reset Global Block in 0.8s
+                        setTimeout(() => { isMarking = false; }, 800);
                     }
                 }
             }
