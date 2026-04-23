@@ -199,8 +199,22 @@ def mark_attendance(employee_id):
             return "OVERRIDE", "Manual Leave Active"
 
         if logout_val and logout_val != "":
+            # Only update if the new time is at least 1 minute later to prevent looping
+            try:
+                from datetime import datetime as dt
+                t_old = dt.strptime(logout_val, '%H:%M:%S')
+                t_new = dt.strptime(now_time, '%H:%M:%S')
+                if (t_new - t_old).total_seconds() < 60:
+                    conn.close()
+                    return "ALREADY_OUT", f"Already Out: {logout_val}"
+            except Exception:
+                pass # Fallback to update if time parsing fails
+
+            # Update the logout time to the latest one instead of blocking
+            cursor.execute(f"UPDATE attendance SET logout_time = {p} WHERE id = {p}", (now_time, rid))
+            conn.commit()
             conn.close()
-            return "ALREADY_OUT", f"Already Out: {logout_val}"
+            return "OUT", f"Check-Out Updated: {now_time}"
 
         # ── Turbo Instant Mode ──
         # Reduced safety window to 5 seconds to solve 'Web to App' slow render complaints.

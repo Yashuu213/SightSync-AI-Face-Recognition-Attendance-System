@@ -890,7 +890,7 @@
                             updateStatus(sState, sIcon, sText);
                             setTimeout(() => {
                                 if (isKioskRunning) updateStatus('scanning', '<i class="fa-solid fa-spinner fa-spin"></i>', 'Monitoring...');
-                            }, 5000);
+                            }, 2000);
                         } else {
                             updateStatus('error', '<i class="fa-solid fa-circle-exclamation"></i>', data.message || 'Error marking attendance.');
                         }
