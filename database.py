@@ -53,6 +53,7 @@ def init_db():
                 date TEXT NOT NULL,
                 login_time TEXT,
                 logout_time TEXT,
+                overtime_hours TEXT DEFAULT '0',
                 FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
             )
         ''')
@@ -74,9 +75,16 @@ def init_db():
                 date TEXT NOT NULL,
                 login_time TEXT,
                 logout_time TEXT,
+                overtime_hours TEXT DEFAULT '0',
                 FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
             )
         ''')
+    
+    # Try to add overtime_hours column to existing tables if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE attendance ADD COLUMN overtime_hours TEXT DEFAULT '0'")
+    except:
+        pass
 
     conn.commit()
     conn.close()
@@ -168,7 +176,8 @@ def mark_attendance(employee_id):
     cursor = get_cursor(conn)
     p = get_placeholder()
     today = datetime.date.today().strftime('%Y-%m-%d')
-    now_time = datetime.datetime.now().strftime('%H:%M:%S')
+    now = datetime.datetime.now()
+    now_time = now.strftime('%H:%M:%S')
 
     cursor.execute(f'''
         SELECT id, login_time, logout_time FROM attendance 
@@ -194,47 +203,47 @@ def mark_attendance(employee_id):
         except (TypeError, IndexError):
             rid, login_val, logout_val = record[0], record[1], record[2]
 
-        if login_val == 'Absent' or logout_val == 'Absent' or login_val == 'Sick Leave' or login_val == 'Paid Leave':
+        if login_val in ['Absent', 'Sick Leave', 'Paid Leave']:
             conn.close()
             return "OVERRIDE", "Manual Leave Active"
 
-        if logout_val and logout_val != "":
-            # Only update if the new time is at least 1 minute later to prevent looping
-            try:
-                from datetime import datetime as dt
-                t_old = dt.strptime(logout_val, '%H:%M:%S')
-                t_new = dt.strptime(now_time, '%H:%M:%S')
-                if (t_new - t_old).total_seconds() < 60:
-                    conn.close()
-                    return "ALREADY_OUT", f"Already Out: {logout_val}"
-            except Exception:
-                pass # Fallback to update if time parsing fails
+        # Calculate time difference from Check-In
+        try:
+            from datetime import datetime as dt
+            t_login = dt.strptime(login_val, '%H:%M:%S').replace(
+                year=now.year, month=now.month, day=now.day
+            )
+            diff_seconds = (now - t_login).total_seconds()
+            
+            # ── 1 Hour Lock (3600 seconds) ──
+            if diff_seconds < 3600:
+                conn.close()
+                mins_left = int((3600 - diff_seconds) / 60)
+                return "ALREADY_IN", f"Check-In Active (Lock: {mins_left}m left)"
+                
+            # ── Calculate Overtime if it's Sunday (Weekday 6) ──
+            ot_val = "0"
+            if now.weekday() == 6:
+                total_hrs = diff_seconds / 3600.0
+                ot_val = f"{total_hrs:.2f}"
 
-            # Update the logout time to the latest one instead of blocking
-            cursor.execute(f"UPDATE attendance SET logout_time = {p} WHERE id = {p}", (now_time, rid))
+            # ── Update Logout (Handles 2nd, 3rd, 4th... scans) ──
+            if logout_val and logout_val != "":
+                t_logout = dt.strptime(logout_val, '%H:%M:%S').replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                if (now - t_logout).total_seconds() < 30:
+                    conn.close()
+                    return "ALREADY_OUT", f"Latest Log Saved: {logout_val}"
+
+            cursor.execute(f"UPDATE attendance SET logout_time = {p}, overtime_hours = {p} WHERE id = {p}", (now_time, ot_val, rid))
             conn.commit()
             conn.close()
             return "OUT", f"Check-Out Updated: {now_time}"
 
-        # ── Turbo Instant Mode ──
-        # Reduced safety window to 5 seconds to solve 'Web to App' slow render complaints.
-        try:
-            from datetime import datetime as dt
-            fmt = '%H:%M:%S'
-            t1 = dt.strptime(login_val, fmt)
-            t2 = dt.strptime(now_time, fmt)
-            diff_sec = (t2 - t1).total_seconds()
-            
-            if 0 <= diff_sec < 5:
-                conn.close()
-                return "ALREADY_IN", f"Already Checked-In! (Wait 5s to Out)"
         except Exception as e:
-            print(f"Time comparison error: {e}")
-
-        cursor.execute(f"UPDATE attendance SET logout_time = {p} WHERE id = {p}", (now_time, rid))
-        conn.commit()
-        conn.close()
-        return "OUT", f"Check-Out: {now_time}"
+            conn.close()
+            return "ERROR", f"System Sync Error"
 
 def get_attendance_logs(date=None):
     conn = get_db_connection()
@@ -242,7 +251,7 @@ def get_attendance_logs(date=None):
     p = get_placeholder()
     if date:
         query = f'''
-            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time 
+            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time, a.overtime_hours
             FROM attendance a 
             JOIN employees e ON a.employee_id = e.employee_id
             WHERE a.date = {p}
@@ -251,7 +260,7 @@ def get_attendance_logs(date=None):
         cursor.execute(query, (date,))
     else:
         query = '''
-            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time 
+            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time, a.overtime_hours
             FROM attendance a 
             JOIN employees e ON a.employee_id = e.employee_id
             ORDER BY a.date DESC, a.login_time DESC

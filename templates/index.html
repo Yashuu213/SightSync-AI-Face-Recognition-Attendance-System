@@ -248,8 +248,8 @@
         <!-- Missing Units -->
         <div class="feed-card">
             <div class="feed-header">
-                <h3>Offline_Personnel</h3>
-                <span class="status-badge" style="background: rgba(255, 62, 62, 0.1); color: var(--danger);">Missing_Link</span>
+                <h3>{% if is_sunday %}Weekend_Personnel{% else %}Offline_Personnel{% endif %}</h3>
+                <span class="status-badge" style="background: rgba(255, 62, 62, 0.1); color: var(--danger);">{% if is_sunday %}Holiday_Protocol{% else %}Missing_Link{% endif %}</span>
             </div>
             <div class="feed-body">
                 {% for a in absent_list %}
@@ -258,7 +258,7 @@
                         <h4>{{ a.name }}</h4>
                         <p>{{ a.department }}</p>
                     </div>
-                    <div class="status-badge status-absent">OFFLINE</div>
+                    <div class="status-badge status-absent">{% if is_sunday %}HOLIDAY{% else %}OFFLINE{% endif %}</div>
                 </div>
                 {% else %}
                 <div style="text-align: center; padding: 100px; color: var(--success);">

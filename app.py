@@ -102,13 +102,15 @@ def index():
     present_list = today_records
     absent_list = [emp for emp in employees if str(emp['employee_id']) not in present_ids]
     
+    is_sunday = datetime.now().weekday() == 6
     return render_template('index.html', 
                            total_employees=len(employees),
                            present_today=len(present_list),
                            absent_today=len(absent_list),
                            present_list=present_list,
                            absent_list=absent_list,
-                           recent_logs=all_logs[:8])
+                           recent_logs=all_logs[:8],
+                           is_sunday=is_sunday)
 
 @app.route('/employees')
 @login_required
