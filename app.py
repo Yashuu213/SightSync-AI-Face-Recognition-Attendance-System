@@ -43,8 +43,8 @@ def b64_to_bytes(b64str):
     return base64.b64decode(b64str)
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@sightsync.com')
-ADMIN_PASS = os.getenv('ADMIN_PASS', 'admin123')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'yash@sightsync.com')
+ADMIN_PASS = os.getenv('ADMIN_PASS', 'Yash@123')
 
 def login_required(f):
     @wraps(f)
