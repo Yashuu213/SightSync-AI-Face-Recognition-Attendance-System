@@ -12,16 +12,17 @@
     <meta name="theme-color" content="#00f2ff">
     <style>
         :root {
-            --primary: #00f2ff;
-            --secondary: #7000ff;
-            --bg-dark: #050505;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --border: rgba(255, 255, 255, 0.1);
-            --text-main: #ffffff;
-            --text-dim: rgba(255, 255, 255, 0.6);
-            --danger: #ff3e3e;
-            --success: #00ff88;
-            --warning: #f59e0b;
+            --primary: #818cf8; /* Vibrant Indigo */
+            --secondary: #c084fc; /* Soft Purple */
+            --bg-dark: #020617; /* Deep Midnight */
+            --card-bg: rgba(255, 255, 255, 0.03); 
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #f87171;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --glass-blur: 25px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -34,13 +35,17 @@
             overflow-x: hidden;
         }
 
-        /* ── Dynamic Background ── */
+        /* ── Luxurious Background ── */
         .app-bg {
             position: fixed;
             inset: 0;
             z-index: -1;
-            background: radial-gradient(circle at 0% 0%, rgba(112, 0, 255, 0.15) 0%, transparent 40%),
-                        radial-gradient(circle at 100% 100%, rgba(0, 242, 255, 0.1) 0%, transparent 40%);
+            background: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
         }
 
         /* ── Modern Layout ── */
@@ -52,8 +57,8 @@
         /* ── Cyber Sidebar ── */
         .sidebar {
             width: 280px;
-            background: rgba(10, 10, 10, 0.8);
-            backdrop-filter: blur(20px);
+            background: rgba(15, 23, 42, 0.3);
+            backdrop-filter: blur(var(--glass-blur));
             border-right: 1px solid var(--border);
             padding: 40px 20px;
             display: flex;
@@ -73,15 +78,17 @@
         }
 
         .brand img { 
-            height: 50px; 
-            width: 50px; 
-            border-radius: 50%; 
+            height: 52px; 
+            width: 52px; 
+            border-radius: 16px; 
             object-fit: cover; 
-            border: 2px dashed var(--primary);
-            padding: 3px;
-            filter: drop-shadow(0 0 8px var(--primary)); 
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 2px;
+            box-shadow: 0 8px 20px rgba(129, 140, 248, 0.3);
         }
-        .brand span { font-family: 'Syncopate', sans-serif; font-weight: 700; letter-spacing: 2px; font-size: 0.9rem; color: #fff; }
+        .brand-text { display: flex; flex-direction: column; }
+        .main-brand { font-family: 'Syncopate', sans-serif; font-weight: 700; font-size: 1rem; color: #fff; letter-spacing: 2px; }
+        .sub-brand { font-size: 0.6rem; color: var(--primary); letter-spacing: 3px; font-weight: 800; }
 
         .nav-menu {
             display: flex;
@@ -255,21 +262,10 @@
             .mobile-btn { display: block; }
         }
 
-        /* Scanline Overlay */
-        .scanlines {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            pointer-events: none;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 4px;
-            opacity: 0.1;
-        }
     </style>
 </head>
 <body>
     <div class="app-bg"></div>
-    <div class="scanlines"></div>
 
     <div class="layout">
         <aside class="sidebar" id="sidebar">
@@ -321,7 +317,7 @@
                     <button class="mobile-btn" id="menuToggle"><i class="fa-solid fa-bars-staggered"></i></button>
                     <div class="page-title">
                         <span style="opacity: 0.4; margin-right: 10px;">SYSTEM_PATH //</span>
-                        <span style="color: var(--primary); font-weight: 700;">{{ self.title()|upper }}</span>
+                        <span style="background: linear-gradient(90deg, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">{{ self.title()|upper }}</span>
                     </div>
                 </div>
                 <div class="top-bar-actions">

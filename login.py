@@ -9,7 +9,11 @@ app = Flask(__name__)
 # --- CONFIGURATION ---
 # REPLACE THESE WITH YOUR ACTUAL CREDENTIALS
 SENDER_EMAIL = "yashsharma1247@gmail.com"
-SENDER_PASSWORD = "Yash@123" 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
 # Note: For Gmail, you need to use an "App Password" if 2FA is on.
 # Go to Google Account -> Security -> 2-Step Verification -> App passwords.
 

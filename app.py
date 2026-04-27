@@ -12,7 +12,7 @@ from database import init_db, add_employee, update_employee, get_all_employees, 
 from face_utils import encode_face_from_image, serialize_encoding, deserialize_encoding, match_face
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'fas-secret-2026'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-dev-key-123')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB limit
 
 # ─── Database Init ────────────────────────────────────────────────────────────
@@ -43,8 +43,8 @@ def b64_to_bytes(b64str):
     return base64.b64decode(b64str)
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'yash@sightsync.com')
-ADMIN_PASS = os.getenv('ADMIN_PASS', 'Yash@123')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
+ADMIN_PASS = os.getenv('ADMIN_PASS')
 
 def login_required(f):
     @wraps(f)

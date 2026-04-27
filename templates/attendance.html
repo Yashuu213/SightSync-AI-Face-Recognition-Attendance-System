@@ -3,12 +3,6 @@
 {% block content %}
 
 <style>
-    :root {
-        --primary: #00f2ff;
-        --secondary: #7000ff;
-        --glass-bg: rgba(255, 255, 255, 0.02);
-        --glass-border: rgba(255, 255, 255, 0.1);
-    }
 
     .recognition-hub {
         max-width: 1000px;
@@ -75,35 +69,6 @@
         z-index: 10;
         width: 100%;
         height: 100%;
-    }
-
-    /* Scanning Effects */
-    .crt-overlay {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
-                    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-        background-size: 100% 3px, 2px 100%;
-        z-index: 5;
-        opacity: 0.4;
-    }
-
-    .scanner-beam {
-        position: absolute;
-        width: 100%;
-        height: 2px;
-        background: var(--primary);
-        box-shadow: 0 0 15px var(--primary);
-        top: 0;
-        animation: beamMove 4s ease-in-out infinite;
-        z-index: 15;
-        opacity: 0.6;
-    }
-
-    @keyframes beamMove {
-        0%, 100% { top: 5%; opacity: 0; }
-        50% { top: 95%; opacity: 1; }
     }
 
     /* HUD Elements */
@@ -202,11 +167,10 @@
         </div>
 
         <div class="camera-frame">
-            <video id="vid" autoplay playsinline muted style="display: none;"></video>
-            <canvas id="overlay"></canvas>
-            
-            <div class="crt-overlay"></div>
-            <div class="scanner-beam" id="beam"></div>
+            <div class="vid-wrapper">
+                <video id="vid" autoplay playsinline muted></video>
+                <canvas id="overlay"></canvas>
+            </div>
             <div class="hud-brackets"></div>
 
             <div id="startHint">
