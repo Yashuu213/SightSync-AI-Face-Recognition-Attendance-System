@@ -43,7 +43,7 @@ def b64_to_bytes(b64str):
     return base64.b64decode(b64str)
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@keyafusion.com')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@sightsync.com')
 ADMIN_PASS = os.getenv('ADMIN_PASS', 'admin123')
 
 def login_required(f):
@@ -506,7 +506,11 @@ def export_excel():
     df_emp['Total Overtime'] = total_ot_list
 
     # 4. Save via OpenPyXL and Apply Colors
-    path = os.path.join(os.path.dirname(__file__), 'data', 'Monthly_Attendance.xlsx')
+    # Use /tmp for Vercel/Serverless compatibility
+    if os.environ.get('VERCEL'):
+        path = os.path.join('/tmp', 'Monthly_Attendance.xlsx')
+    else:
+        path = os.path.join(os.path.dirname(__file__), 'data', 'Monthly_Attendance.xlsx')
     
     writer = pd.ExcelWriter(path, engine='openpyxl')
     df_emp.to_excel(writer, sheet_name='Attendance', index=False)

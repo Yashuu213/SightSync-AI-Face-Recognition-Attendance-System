@@ -1,15 +1,15 @@
 {
-  "name": "Keya Fusion AI",
-  "short_name": "Keya Fusion",
-  "description": "Premium AI Face Recognition Attendance System by Keya Fusion",
+  "name": "SightSync AI",
+  "short_name": "SightSync",
+  "description": "Premium AI Face Recognition Attendance System by SightSync",
   "start_url": "/user",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#050505",
+  "theme_color": "#00f2ff",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
-      "sizes": "512x512",
+      "src": "/static/img/logo.png",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }

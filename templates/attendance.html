@@ -1,256 +1,375 @@
 {% extends 'base.html' %}
-{% block title %}Live Attendance Camera{% endblock %}
+{% block title %}Tactical Recognition{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:800px;margin:0 auto;">
-  <div class="card-header flex-between">
-    <div>
-      <h3><i class="fa-solid fa-circle-dot" style="color:#ef4444;"></i> Live Face Recognition</h3>
-      <p class="sub">Keep your face in view for ~1 second — attendance will be marked automatically.</p>
-    </div>
-    <button class="btn btn-primary" id="btnStart"><i class="fa-solid fa-play"></i> Start Camera</button>
-  </div>
-
-  <div class="card-body text-center" style="padding:24px;">
-    <!-- Camera + Drawing Canvas -->
-    <div class="live-box" id="liveBox" style="display:none;">
-      <video id="vid" autoplay playsinline muted></video>
-      <canvas id="overlay"></canvas>
-      <!-- Status bar at bottom -->
-      <div class="live-status" id="liveStatus">Scanning for faces…</div>
-    </div>
-
-    <div id="startHint" style="padding:60px 20px;color:#9CA3AF;">
-      <i class="fa-solid fa-camera" style="font-size:4rem;"></i>
-      <p style="margin-top:12px;">Click <b>Start Camera</b> to begin.</p>
-    </div>
-  </div>
-</div>
-
 <style>
-  .live-box {
-    position: relative;
-    width: 640px;
-    height: 480px;
-    border-radius: 14px;
-    overflow: hidden;
-    margin: 0 auto;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
-    background: #000;
-  }
+    :root {
+        --primary: #00f2ff;
+        --secondary: #7000ff;
+        --glass-bg: rgba(255, 255, 255, 0.02);
+        --glass-border: rgba(255, 255, 255, 0.1);
+    }
 
-  #vid {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-  }
+    .recognition-hub {
+        max-width: 1000px;
+        margin: 0 auto;
+        animation: hubFade 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
 
-  #overlay {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 5;
-  }
+    @keyframes hubFade {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-  .live-status {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 12px;
-    text-align: center;
-    background: rgba(0, 0, 0, .6);
-    color: #fff;
-    font-weight: 600;
-    font-size: .95rem;
-    z-index: 10;
-    transition: background .3s;
-  }
+    /* ── Terminal Console ── */
+    .console-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(25px);
+        border: 1px solid var(--glass-border);
+        border-radius: 32px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+    }
 
-  .status-green {
-    background: rgba(5, 150, 105, .85) !important;
-  }
+    .console-header {
+        padding: 30px 40px;
+        border-bottom: 1px solid var(--glass-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.01);
+    }
 
-  .status-red {
-    background: rgba(220, 38, 38, .75) !important;
-  }
+    .console-header h3 {
+        font-family: 'Syncopate', sans-serif;
+        font-size: 1rem;
+        letter-spacing: 4px;
+        color: var(--primary);
+        text-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+    }
+
+    /* ── Advanced Camera HUD ── */
+    .camera-frame {
+        position: relative;
+        background: #000;
+        margin: 40px;
+        border-radius: 24px;
+        overflow: hidden;
+        aspect-ratio: 4/3;
+        border: 2px solid var(--glass-border);
+        box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+    }
+
+    #vid {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        filter: contrast(1.1) brightness(1.1);
+    }
+
+    #overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Scanning Effects */
+    .crt-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+        background-size: 100% 3px, 2px 100%;
+        z-index: 5;
+        opacity: 0.4;
+    }
+
+    .scanner-beam {
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: var(--primary);
+        box-shadow: 0 0 15px var(--primary);
+        top: 0;
+        animation: beamMove 4s ease-in-out infinite;
+        z-index: 15;
+        opacity: 0.6;
+    }
+
+    @keyframes beamMove {
+        0%, 100% { top: 5%; opacity: 0; }
+        50% { top: 95%; opacity: 1; }
+    }
+
+    /* HUD Elements */
+    .hud-brackets {
+        position: absolute;
+        inset: 40px;
+        border: 1px solid rgba(0, 242, 255, 0.1);
+        pointer-events: none;
+        z-index: 12;
+    }
+
+    .hud-brackets::before, .hud-brackets::after {
+        content: '';
+        position: absolute;
+        width: 30px; height: 30px;
+        border: 2px solid var(--primary);
+    }
+    .hud-brackets::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .hud-brackets::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+    /* ── Status HUD ── */
+    .status-hud {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(15px);
+        padding: 20px;
+        text-align: center;
+        border-top: 1px solid var(--glass-border);
+        z-index: 20;
+    }
+
+    .status-message {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #fff;
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 8px; height: 8px;
+        background: var(--primary);
+        border-radius: 50%;
+        margin-right: 12px;
+        box-shadow: 0 0 10px var(--primary);
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Controls ── */
+    .btn-cyber {
+        background: var(--primary);
+        color: #000;
+        border: none;
+        padding: 14px 30px;
+        border-radius: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 10px 20px -5px rgba(0, 242, 255, 0.4);
+    }
+
+    .btn-cyber:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(0, 242, 255, 0.6); background: #fff; }
+
+    #startHint {
+        padding: 120px 40px;
+        text-align: center;
+        color: var(--text-dim);
+    }
+
+    #startHint i { font-size: 4rem; margin-bottom: 25px; opacity: 0.2; }
 </style>
 
+<div class="recognition-hub">
+    <div class="console-card">
+        <div class="console-header">
+            <h3>Recognition_Buffer</h3>
+            <button class="btn-cyber" id="btnStart">
+                <i class="fa-solid fa-power-off"></i> Initialize Sensor
+            </button>
+        </div>
+
+        <div class="camera-frame">
+            <video id="vid" autoplay playsinline muted style="display: none;"></video>
+            <canvas id="overlay"></canvas>
+            
+            <div class="crt-overlay"></div>
+            <div class="scanner-beam" id="beam"></div>
+            <div class="hud-brackets"></div>
+
+            <div id="startHint">
+                <i class="fa-solid fa-crosshairs"></i>
+                <p style="text-transform: uppercase; letter-spacing: 3px; font-weight: 600;">System_Idle: Awaiting Initialization</p>
+            </div>
+
+            <div class="status-hud" id="hudBar" style="display: none;">
+                <div class="status-message">
+                    <span class="status-indicator"></span>
+                    <span id="liveStatus">Scanning_Temporal_Stream...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-  (function () {
-    const vid = document.getElementById('vid');
-    const overlay = document.getElementById('overlay');
-    const liveBox = document.getElementById('liveBox');
-    const startHint = document.getElementById('startHint');
-    const liveStatus = document.getElementById('liveStatus');
-    const btnStart = document.getElementById('btnStart');
-    const octx = overlay.getContext('2d');
-    const cap = document.createElement('canvas');
-    const capCtx = cap.getContext('2d');
+    (function () {
+        const vid = document.getElementById('vid');
+        const overlay = document.getElementById('overlay');
+        const hudBar = document.getElementById('hudBar');
+        const startHint = document.getElementById('startHint');
+        const liveStatus = document.getElementById('liveStatus');
+        const btnStart = document.getElementById('btnStart');
+        const octx = overlay.getContext('2d');
+        const cap = document.createElement('canvas');
+        const capCtx = cap.getContext('2d');
 
-    // Track how many consecutive frames each ID appeared
-    const seenFor = {};   // { id: count }
-    const markedOn = {};   // { id: timestamp } — cooldown after marking
-    const idToName = {};   // { id: name } for display
-    const THRESHOLD = 2;    // 2 frames ≈ ~0.6 seconds
-    const COOLDOWN = 15000;// 15 s cooldown before same person is re-marked
-    let isBusy = false; // Prevent overlapping requests
-    let loopTimer = null;
+        const seenFor = {};
+        const markedOn = {};
+        const idToName = {};
+        const THRESHOLD = 2;
+        const COOLDOWN = 15000;
+        let isBusy = false;
+        let loopTimer = null;
 
-    btnStart.addEventListener('click', async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: 640, height: 480 }
+
+        btnStart.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
+                });
+                vid.srcObject = stream;
+                vid.style.display = 'block';
+                hudBar.style.display = 'block';
+                startHint.style.display = 'none';
+                btnStart.style.display = 'none';
+
+                vid.onloadedmetadata = () => {
+                    overlay.width = cap.width = vid.videoWidth;
+                    overlay.height = cap.height = vid.videoHeight;
+                    loopTimer = setInterval(sendFrame, 300);
+                };
+            } catch (e) {
+                alert('Sensor Link Failure: ' + e.message);
+            }
         });
-        vid.srcObject = stream;
-        liveBox.style.display = 'block';
-        startHint.style.display = 'none';
-        btnStart.style.display = 'none';
 
-        vid.onloadedmetadata = () => {
-          overlay.width = cap.width = vid.videoWidth;
-          overlay.height = cap.height = vid.videoHeight;
-          // Start at ~3 fps
-          // Start loop with busy check
-          loopTimer = setInterval(sendFrame, 300);
-        };
-      } catch (e) {
-        alert('Camera error: ' + e.message + '\nPlease allow camera access.');
-      }
-    });
+        async function sendFrame() {
+            if (!vid.videoWidth || isBusy) return;
+            isBusy = true;
+            capCtx.drawImage(vid, 0, 0, cap.width, cap.height);
+            const frame = cap.toDataURL('image/jpeg', 0.6);
 
-    async function sendFrame() {
-      if (!vid.videoWidth || isBusy) return;
-      isBusy = true;
-      capCtx.drawImage(vid, 0, 0, cap.width, cap.height);
-      const frame = cap.toDataURL('image/jpeg', 0.6); // Slightly lower quality for faster upload
+            let faces = [];
+            try {
+                const res = await fetch('/api/recognise', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    faces = data.faces;
+                    faces.forEach(f => { if (f.id !== 'Unknown') idToName[f.id] = f.name; });
+                }
+            } catch (_) { } finally {
+                isBusy = false;
+            }
 
-      let faces = [];
-      try {
-        const res = await fetch('/api/recognise', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ frame })
-        });
-        const data = await res.json();
-        if (data.success) {
-          faces = data.faces;
-          faces.forEach(f => { if (f.id !== 'Unknown') idToName[f.id] = f.name; });
-        }
-      } catch (_) { } finally {
-        isBusy = false;
-      }
-
-      drawBoxes(faces);
-      updateAttendance(faces);
-    }
-
-    function drawBoxes(faces) {
-      const W = overlay.width;
-      octx.clearRect(0, 0, overlay.width, overlay.height);
-
-      faces.forEach(f => {
-        // The video is CSS-mirrored, so we mirror the box X coords for overlay
-        const { top, right, bottom, left } = f.box;
-        const mLeft = W - right;
-        const mRight = W - left;
-
-        const known = f.id !== 'Unknown';
-        octx.strokeStyle = known ? '#00ff88' : '#ef4444';
-        octx.lineWidth = 3;
-        octx.strokeRect(mLeft, top, mRight - mLeft, bottom - top);
-
-        // Name tag
-        const label = (f.id === 'Unknown') ? 'Unknown' : f.name;
-        octx.font = 'bold 14px Inter,sans-serif';
-        const tw = octx.measureText(label).width;
-        octx.fillStyle = known ? '#00ff88' : '#ef4444';
-        octx.fillRect(mLeft, bottom, tw + 10, 22);
-        octx.fillStyle = '#000';
-        octx.fillText(label, mLeft + 5, bottom + 15);
-      });
-    }
-
-    async function updateAttendance(faces) {
-      const nowIds = new Set(faces.map(f => f.id).filter(id => id !== 'Unknown'));
-
-      // Decay counters for faces no longer visible
-      Object.keys(seenFor).forEach(id => {
-        if (!nowIds.has(id)) seenFor[id] = Math.max(0, seenFor[id] - 1);
-      });
-
-      if (nowIds.size === 0) {
-        liveStatus.textContent = 'Scanning for faces…';
-        liveStatus.className = 'live-status';
-        return;
-      }
-
-      let bestMsg = '';
-      let bestClass = 'live-status';
-      let bestPriority = -1;
-
-      for (const id of nowIds) {
-        seenFor[id] = (seenFor[id] || 0) + 1;
-
-        const now = Date.now();
-        const lastMark = markedOn[id] || 0;
-        const inCooldown = (now - lastMark) < COOLDOWN;
-        const displayName = idToName[id] || id;
-
-        // Priority 1: Cooldown
-        if (inCooldown) {
-          if (bestPriority < 1) {
-            bestMsg = `${displayName}: Attendance already recorded. (${Math.ceil((COOLDOWN - (now - lastMark)) / 1000)}s)`;
-            bestClass = 'live-status status-green';
-            bestPriority = 1;
-          }
-          continue;
+            drawBoxes(faces);
+            updateAttendance(faces);
         }
 
-        // Priority 2: Progress
-        if (seenFor[id] < THRESHOLD) {
-          if (bestPriority < 2) {
-            bestMsg = `Recognising ${displayName}… hold still (${seenFor[id]}/${THRESHOLD})`;
-            bestClass = 'live-status';
-            bestPriority = 2;
-          }
-        }
-        // Priority 3+: Marking
-        else if (seenFor[id] === THRESHOLD) {
-          bestMsg = `Marking attendance for ${displayName}…`;
-          bestClass = 'live-status';
-          bestPriority = 3;
+        function drawBoxes(faces) {
+            const W = overlay.width;
+            octx.clearRect(0, 0, overlay.width, overlay.height);
 
-          try {
-            const res = await fetch('/api/mark', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ employee_id: id })
+            faces.forEach(f => {
+                const { top, right, bottom, left } = f.box;
+                const mLeft = W - right;
+                const mRight = W - left;
+
+                const known = f.id !== 'Unknown';
+                octx.strokeStyle = known ? '#00f2ff' : '#ff3e3e';
+                octx.lineWidth = 3;
+                
+                const boxW = mRight - mLeft;
+                const boxH = bottom - top;
+                const len = 15;
+
+                // Cyber Corners
+                octx.beginPath();
+                octx.moveTo(mLeft, top + len); octx.lineTo(mLeft, top); octx.lineTo(mLeft + len, top);
+                octx.moveTo(mRight - len, top); octx.lineTo(mRight, top); octx.lineTo(mRight, top + len);
+                octx.moveTo(mRight, bottom - len); octx.lineTo(mRight, bottom); octx.lineTo(mRight - len, bottom);
+                octx.moveTo(mLeft + len, bottom); octx.lineTo(mLeft, bottom); octx.lineTo(mLeft, bottom - len);
+                octx.stroke();
+
+                const label = (f.id === 'Unknown') ? 'Unknown_Entity' : f.name.toUpperCase();
+                octx.font = '700 12px Space Grotesk, sans-serif';
+                const tw = octx.measureText(label).width;
+                octx.fillStyle = known ? 'rgba(0, 242, 255, 0.8)' : 'rgba(255, 62, 62, 0.8)';
+                octx.fillRect(mLeft, top - 25, tw + 20, 20);
+                octx.fillStyle = '#000';
+                octx.fillText(label, mLeft + 10, top - 11);
             });
-            const data = await res.json();
-            bestMsg = `✅ ${displayName}: ${data.message}`;
-            bestClass = 'live-status status-green';
-            bestPriority = 4;
-            markedOn[id] = now;
-            seenFor[id] = THRESHOLD + 1;
-          } catch (e) {
-            bestMsg = `Error marking ${displayName}: ${e.message}`;
-            bestClass = 'live-status status-red';
-            bestPriority = 0;
-          }
         }
-      }
 
-      if (bestPriority >= 0) {
-        liveStatus.textContent = bestMsg;
-        liveStatus.className = bestClass;
-      }
-    }
-  })();
+        async function updateAttendance(faces) {
+            const nowIds = new Set(faces.map(f => f.id).filter(id => id !== 'Unknown'));
+
+            Object.keys(seenFor).forEach(id => {
+                if (!nowIds.has(id)) seenFor[id] = Math.max(0, seenFor[id] - 1);
+            });
+
+            if (nowIds.size === 0) {
+                liveStatus.textContent = 'SCANNING_TEMPORAL_STREAM...';
+                return;
+            }
+
+            for (const id of nowIds) {
+                seenFor[id] = (seenFor[id] || 0) + 1;
+                const now = Date.now();
+                const lastMark = markedOn[id] || 0;
+                const inCooldown = (now - lastMark) < COOLDOWN;
+                const displayName = (idToName[id] || id).toUpperCase();
+
+                if (inCooldown) {
+                    liveStatus.textContent = `UNIT_${displayName}: ACCESS_RECORDED_COOLDOWN_ACTIVE`;
+                    continue;
+                }
+
+                if (seenFor[id] === THRESHOLD) {
+                    liveStatus.textContent = `IDENTIFIED: ${displayName} // COMMITTING_ATTENDANCE...`;
+                    try {
+                        const res = await fetch('/api/mark', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ employee_id: id })
+                        });
+                        const data = await res.json();
+                        liveStatus.textContent = `✅ AUTH_SUCCESS: ${displayName} // ${data.message.toUpperCase()}`;
+                        markedOn[id] = now;
+                        seenFor[id] = THRESHOLD + 1;
+                    } catch (e) {
+                        liveStatus.textContent = `AUTH_FAILURE: DATA_LINK_ERROR`;
+                    }
+                }
+            }
+        }
+    })();
 </script>
 
 {% endblock %}

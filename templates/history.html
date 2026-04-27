@@ -1,150 +1,308 @@
 {% extends 'base.html' %}
-{% block title %}Attendance History{% endblock %}
+{% block title %}Event Logs{% endblock %}
 {% block content %}
 
-<div class="card">
-  <div class="card-header flex-between">
-    <h3>Attendance Records ({{ logs|length }})</h3>
-    <a href="{{ url_for('export_excel') }}" class="btn btn-success"><i class="fa-solid fa-download"></i> Download Excel</a>
-  </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr><th>Date</th><th>Name</th><th>ID</th><th>Department</th><th>Login</th><th>Logout</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for l in logs %}
-          <tr>
-            <td>{{ l.date }}</td>
-            <td><b>{{ l.name }}</b></td>
-            <td><span class="chip">{{ l.employee_id }}</span></td>
-            <td>{{ l.department }}</td>
-            <td>
-              {% if l.login_time == 'Absent' %}
-                <span class="badge danger" style="background: #FEE2E2; color: #ef4444;">Absent</span>
-              {% else %}
-                <span class="badge green">{{ l.login_time }}</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if l.logout_time == 'Absent' %}
-                <span class="badge danger" style="background: #FEE2E2; color: #ef4444;">Absent</span>
-              {% elif l.logout_time %}
-                <span class="badge grey">{{ l.logout_time }}</span>
-              {% else %}
-                -
-              {% endif %}
-            </td>
-            <td>
-              <button class="btn btn-primary btn-sm" onclick="openTimeModal('{{ l.id }}', '{{ l.name }}', '{{ l.date }}', '{{ l.login_time }}', '{{ l.logout_time }}')" title="Edit Record" style="background-color: #6366f1; border-color: #6366f1; padding: 4px 8px;">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-              <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ l.id }}', '{{ l.name }}', '{{ l.date }}')" title="Delete Record" style="background-color: #ef4444; border-color: #ef4444; padding: 4px 8px;">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="7" class="empty">No attendance records found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<style>
+    :root {
+        --primary: #00f2ff;
+        --card-bg: rgba(255, 255, 255, 0.02);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-dim: rgba(255, 255, 255, 0.5);
+    }
+
+    .history-matrix {
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.98); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── Terminal Header ── */
+    .terminal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px 30px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .terminal-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .terminal-title i { color: var(--primary); font-size: 1.5rem; filter: drop-shadow(0 0 10px var(--primary)); }
+    .terminal-title h3 { font-family: 'Syncopate', sans-serif; letter-spacing: 3px; font-size: 1.1rem; }
+
+    /* ── Data Grid ── */
+    .log-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .log-row {
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 20px 30px;
+        display: grid;
+        grid-template-columns: 120px 2fr 1fr 1fr 1fr 120px;
+        align-items: center;
+        gap: 20px;
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .log-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--primary);
+        transform: translateX(10px);
+        box-shadow: -10px 0 20px rgba(0, 242, 255, 0.05);
+    }
+
+    .log-row::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: var(--primary);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .log-row:hover::before { opacity: 1; }
+
+    .epoch-tag { font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 700; color: var(--primary); }
+    .personnel-info h4 { font-size: 1rem; font-weight: 700; color: #fff; }
+    .personnel-info p { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
+
+    .unit-id { font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; background: rgba(0, 242, 255, 0.1); color: var(--primary); padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(0, 242, 255, 0.2); }
+
+    .status-badge {
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        text-align: center;
+        width: fit-content;
+    }
+
+    .status-in { background: rgba(0, 255, 136, 0.1); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.2); }
+    .status-out { background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px solid var(--glass-border); }
+    .status-absent { background: rgba(255, 62, 62, 0.1); color: #ff3e3e; border: 1px solid rgba(255, 62, 62, 0.2); }
+
+    .action-group {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .btn-icon {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-icon:hover { background: var(--primary); color: #000; border-color: var(--primary); transform: translateY(-2px); }
+    .btn-icon.del:hover { background: #ff3e3e; border-color: #ff3e3e; color: #fff; }
+
+    /* ── Edit Modal ── */
+    #timeModal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(15px);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .modal-content {
+        background: #0a0a0a;
+        border: 1px solid var(--glass-border);
+        border-radius: 28px;
+        padding: 40px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .modal-content h3 { font-family: 'Syncopate', sans-serif; letter-spacing: 2px; font-size: 0.9rem; color: var(--primary); margin-bottom: 25px; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+    .form-group input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 14px;
+        color: #fff;
+        outline: none;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+
+</style>
+
+<div class="history-matrix">
+    <div class="terminal-header">
+        <div class="terminal-title">
+            <i class="fa-solid fa-microchip"></i>
+            <h3>Attendance Log_Core</h3>
+        </div>
+        <p style="color: var(--text-dim); font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;">Total_Records: {{ logs|length }}</p>
     </div>
-  </div>
+
+    <div class="log-grid">
+        <div class="log-row" style="background: transparent; border: none; padding-bottom: 0; opacity: 0.5; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px;">
+            <div>Epoch_Date</div>
+            <div>Personnel_Unit</div>
+            <div>Identifier</div>
+            <div>Auth_In</div>
+            <div>Auth_Out</div>
+            <div class="text-end">Actions</div>
+        </div>
+
+        {% for l in logs %}
+        <div class="log-row">
+            <div class="epoch-tag">{{ l.date }}</div>
+            <div class="personnel-info">
+                <h4>{{ l.name }}</h4>
+                <p>{{ l.department }}</p>
+            </div>
+            <div><span class="unit-id">{{ l.employee_id }}</span></div>
+            <div>
+                {% if l.login_time == 'Absent' %}
+                    <span class="status-badge status-absent">ABSENT</span>
+                {% else %}
+                    <span class="status-badge status-in">{{ l.login_time }}</span>
+                {% endif %}
+            </div>
+            <div>
+                {% if l.logout_time == 'Absent' %}
+                    <span class="status-badge status-absent">ABSENT</span>
+                {% elif l.logout_time %}
+                    <span class="status-badge status-out">{{ l.logout_time }}</span>
+                {% else %}
+                    <span style="opacity: 0.3;">--:--:--</span>
+                {% endif %}
+            </div>
+            <div class="action-group">
+                <button class="btn-icon" onclick="openTimeModal('{{ l.id }}', '{{ l.name }}', '{{ l.date }}', '{{ l.login_time }}', '{{ l.logout_time }}')">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+                <button class="btn-icon del" onclick="deleteRecord('{{ l.id }}', '{{ l.name }}', '{{ l.date }}')">
+                    <i class="fa-solid fa-trash-arrow-up"></i>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 100px; border: 1px dashed var(--glass-border); border-radius: 24px;">
+            <i class="fa-solid fa-database" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 20px;"></i>
+            <p style="color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase;">No Event Logs Found In Buffer.</p>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 
-<!-- Edit Attendance Time Modal -->
-<div id="timeModal" style="display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-  <div class="card" style="width:350px; max-width:90%; padding:20px; border-radius:12px;">
-    <div class="card-header" style="padding:0 0 15px 0;">
-      <h3 id="modalTitle">Edit Time</h3>
+<!-- Modal -->
+<div id="timeModal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Modify_Entry</h3>
+        <form id="timeForm">
+            <input type="hidden" id="recordId">
+            <div class="form-group">
+                <label>Login Epoch (HH:MM:SS)</label>
+                <input type="text" id="loginTime" placeholder="ABSENT or 00:00:00">
+            </div>
+            <div class="form-group">
+                <label>Logout Epoch (HH:MM:SS)</label>
+                <input type="text" id="logoutTime" placeholder="ABSENT or 00:00:00">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:15px; margin-top: 30px;">
+                <button type="button" class="btn-icon" onclick="closeTimeModal()" style="width: auto; padding: 0 20px;">Abort</button>
+                <button type="submit" class="btn-icon" id="saveTimeBtn" style="width: auto; padding: 0 20px; background: var(--primary); color: #000; font-weight: 800;">Commit</button>
+            </div>
+        </form>
     </div>
-    <form id="timeForm">
-      <input type="hidden" id="recordId">
-      <div style="margin-bottom:15px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:#64748b;">Login Time (HH:MM:SS or Absent)</label>
-        <input type="text" id="loginTime" class="form-control" style="width:100%;">
-      </div>
-      <div style="margin-bottom:20px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:#64748b;">Logout Time (HH:MM:SS or Absent)</label>
-        <input type="text" id="logoutTime" class="form-control" style="width:100%;">
-      </div>
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeTimeModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="saveTimeBtn">Save Changes</button>
-      </div>
-    </form>
-  </div>
 </div>
 
 <script>
 function openTimeModal(id, name, date, login, logout) {
-  document.getElementById('recordId').value = id;
-  document.getElementById('modalTitle').textContent = `Edit: ${name} (${date})`;
-  document.getElementById('loginTime').value = login === 'None' ? '' : login;
-  document.getElementById('logoutTime').value = logout === 'None' || logout === '' ? '' : logout;
-  document.getElementById('timeModal').style.display = 'flex';
+    document.getElementById('recordId').value = id;
+    document.getElementById('modalTitle').textContent = `MOD_LOG: ${name}`;
+    document.getElementById('loginTime').value = login === 'None' ? '' : login;
+    document.getElementById('logoutTime').value = logout === 'None' || logout === '' ? '' : logout;
+    document.getElementById('timeModal').style.display = 'flex';
 }
 
 function closeTimeModal() {
-  document.getElementById('timeModal').style.display = 'none';
+    document.getElementById('timeModal').style.display = 'none';
 }
 
 document.getElementById('timeForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const saveBtn = document.getElementById('saveTimeBtn');
-  saveBtn.disabled = true;
-  saveBtn.textContent = "Saving...";
+    e.preventDefault();
+    const saveBtn = document.getElementById('saveTimeBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
-  const payload = {
-    id: document.getElementById('recordId').value,
-    login_time: document.getElementById('loginTime').value,
-    logout_time: document.getElementById('logoutTime').value
-  };
+    const payload = {
+        id: document.getElementById('recordId').value,
+        login_time: document.getElementById('loginTime').value,
+        logout_time: document.getElementById('logoutTime').value
+    };
 
-  try {
-    const res = await fetch('/api/update_attendance_time', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      location.reload();
-    } else {
-      alert(data.message || "Failed to update record.");
-      saveBtn.disabled = false;
-      saveBtn.textContent = "Save Changes";
+    try {
+        const res = await fetch('/api/update_attendance_time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || "Logic failure.");
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Commit';
+        }
+    } catch (error) {
+        alert("Signal lost.");
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Commit';
     }
-  } catch (error) {
-    console.error("Error updating time:", error);
-    alert("Error: Server is either down or returned an invalid response. Check console for details.");
-    saveBtn.disabled = false;
-    saveBtn.textContent = "Save Changes";
-  }
 });
 
 async function deleteRecord(id, name, date) {
-  if (!confirm(`Are you sure you want to delete the attendance record for ${name} on ${date}? This action cannot be undone.`)) {
-    return;
-  }
-
-  try {
-    const res = await fetch(`/api/delete_attendance_record/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      location.reload();
-    } else {
-      alert(data.message || "Failed to delete record.");
+    if (!confirm(`Purge entry for ${name} [${date}]?`)) return;
+    try {
+        const res = await fetch(`/api/delete_attendance_record/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) location.reload();
+    } catch (error) {
+        alert("Purge failed.");
     }
-  } catch (error) {
-    console.error("Error deleting record:", error);
-    alert("Connection error while deleting record.");
-  }
 }
 </script>
+
 {% endblock %}

@@ -1,5 +1,5 @@
 @echo off
-echo Setting up Face Recognition Attendance System...
+echo Starting SightSync AI Face Recognition Attendance System...
 echo ==============================================
 
 if not exist venv (

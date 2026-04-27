@@ -1,185 +1,407 @@
 {% extends 'base.html' %}
-{% block title %}Employees{% endblock %}
+{% block title %}Employee Matrix{% endblock %}
 {% block content %}
 
-<div class="card">
-  <div class="card-header flex-between">
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <h3>All Employees ({{ employees|length }})</h3>
-      <input type="date" id="attendanceDate" class="form-control" style="padding: 5px 10px; width: auto; font-size: 0.85rem;" title="Select date for manual attendance">
+<style>
+    :root {
+        --primary: #00f2ff;
+        --secondary: #7000ff;
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-dim: rgba(255, 255, 255, 0.6);
+    }
+
+    .matrix-container {
+        padding: 20px;
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Header Section ── */
+    .matrix-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 25px 35px;
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+    }
+
+    .matrix-header h3 {
+        font-family: 'Syncopate', sans-serif;
+        font-size: 1.2rem;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: var(--primary);
+        text-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+    }
+
+    .date-scripter {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--glass-border);
+        padding: 10px 20px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .date-scripter label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; }
+    .date-scripter input {
+        background: transparent;
+        border: none;
+        color: var(--primary);
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* ── Employee Grid ── */
+    .employee-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 25px;
+    }
+
+    .employee-card {
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 28px;
+        padding: 30px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+
+    .employee-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 4px;
+        background: var(--primary);
+        box-shadow: 0 0 15px var(--primary);
+        opacity: 0.3;
+    }
+
+    .card-scan-line {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: -100%;
+        left: 0;
+        background: linear-gradient(to bottom, transparent, rgba(0, 242, 255, 0.05), transparent);
+        animation: cardScan 4s infinite linear;
+        pointer-events: none;
+    }
+
+    @keyframes cardScan {
+        to { top: 100%; }
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+
+    .avatar-box {
+        width: 64px;
+        height: 64px;
+        background: rgba(0, 242, 255, 0.1);
+        border: 1px solid var(--primary);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--primary);
+        font-weight: 800;
+        box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+    }
+
+    .info-box h4 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .info-box p { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+    .details-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.85rem;
+        color: var(--text-dim);
+    }
+
+    .detail-item i { width: 16px; color: var(--primary); opacity: 0.8; }
+
+    /* ── Action Buttons ── */
+    .action-matrix {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .btn-action {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        padding: 12px;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-action:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); color: var(--primary); }
+    .btn-action.btn-present:hover { color: #00ff88; border-color: #00ff88; }
+    .btn-action.btn-leave:hover { color: #f59e0b; border-color: #f59e0b; }
+    .btn-action.btn-delete:hover { color: #ff3e3e; border-color: #ff3e3e; }
+
+    /* ── Edit Modal ── */
+    #editModal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(15px);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .modal-content {
+        background: #0a0a0a;
+        border: 1px solid var(--glass-border);
+        border-radius: 32px;
+        padding: 45px;
+        width: 100%;
+        max-width: 500px;
+        position: relative;
+    }
+
+    .modal-content h3 { font-family: 'Syncopate', sans-serif; letter-spacing: 3px; font-size: 1rem; color: var(--primary); margin-bottom: 30px; }
+
+    .cyber-form .form-group { margin-bottom: 20px; }
+    .cyber-form label { display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+    .cyber-form input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 14px 18px;
+        color: #fff;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+    .cyber-form input:focus { border-color: var(--primary); }
+
+</style>
+
+<div class="matrix-container">
+    <div class="matrix-header">
+        <div>
+            <h3>Employee Database</h3>
+            <p style="color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px;">Active Units: {{ employees|length }}</p>
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div class="date-scripter">
+                <label>Attendance Epoch</label>
+                <input type="date" id="attendanceDate">
+            </div>
+            <a href="{{ url_for('add_employee_route') }}" class="btn-action" style="background: var(--primary); color: #000; border: none; padding: 15px 25px;">
+                <i class="fa-solid fa-plus"></i> Initialize New Unit
+            </a>
+        </div>
     </div>
-    <a href="{{ url_for('add_employee_route') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Employee</a>
-  </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr><th>ID</th><th>Name</th><th>Department</th><th>Phone</th><th>Email</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for e in employees %}
-          <tr>
-            <td><span class="chip">{{ e.employee_id }}</span></td>
-            <td><b>{{ e.name }}</b></td>
-            <td>{{ e.department }}</td>
-            <td>{{ e.phone }}</td>
-            <td>{{ e.email }}</td>
-            <td>
-              <div style="display: flex; gap: 5px;">
-                <button class="btn btn-primary btn-sm" onclick="openEditModal('{{ e.employee_id }}', '{{ e.name }}', '{{ e.department }}', '{{ e.phone }}', '{{ e.email }}')" title="Edit Employee" style="background-color: #6366f1; border-color: #6366f1;">
-                  <i class="fa-solid fa-pen-to-square"></i>
+
+    <div class="employee-grid">
+        {% for e in employees %}
+        <div class="employee-card">
+            <div class="card-scan-line"></div>
+            <div class="card-header">
+                <div class="avatar-box">{{ e.name[0] | upper }}</div>
+                <div class="info-box">
+                    <h4>{{ e.name }}</h4>
+                    <p>{{ e.department }}</p>
+                </div>
+            </div>
+
+            <div class="details-list">
+                <div class="detail-item"><i class="fa-solid fa-hashtag"></i> <span>ID: <strong>{{ e.employee_id }}</strong></span></div>
+                <div class="detail-item"><i class="fa-solid fa-phone"></i> <span>{{ e.phone }}</span></div>
+                <div class="detail-item"><i class="fa-solid fa-envelope"></i> <span>{{ e.email }}</span></div>
+            </div>
+
+            <div class="action-matrix">
+                <button class="btn-action" onclick="openEditModal('{{ e.employee_id }}', '{{ e.name }}', '{{ e.department }}', '{{ e.phone }}', '{{ e.email }}')" title="Modify Data">
+                    <i class="fa-solid fa-user-gear"></i> Edit
                 </button>
-                <button class="btn btn-success btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Present')" title="Mark Present">
-                  <i class="fa-solid fa-check"></i>
+                <button class="btn-action btn-present" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Present')" title="Mark Presence">
+                    <i class="fa-solid fa-check-double"></i> Present
                 </button>
-                <button class="btn btn-warning btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Sick Leave')" title="Sick Leave" style="background-color: #f59e0b; border-color: #f59e0b;">
-                  <i class="fa-solid fa-hospital-user"></i>
+                <button class="btn-action btn-leave" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Paid Leave')" title="Grant Leave">
+                    <i class="fa-solid fa-calendar-day"></i> Leave
                 </button>
-                <button class="btn btn-info btn-sm" onclick="markManual('{{ e.employee_id }}', '{{ e.name }}', 'Paid Leave')" title="Paid Leave" style="background-color: #3b82f6; border-color: #3b82f6;">
-                  <i class="fa-solid fa-calendar-check"></i>
+                <button class="btn-action btn-delete" onclick="delEmp('{{ e.employee_id }}','{{ e.name }}')" title="Purge Record">
+                    <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="delEmp('{{ e.employee_id }}','{{ e.name }}')" title="Delete Employee">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="6" class="empty">No employees yet. <a href="{{ url_for('add_employee_route') }}">Add one now.</a></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </div>
+        </div>
+        {% else %}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 100px; background: var(--card-bg); border-radius: 32px; border: 1px dashed var(--glass-border);">
+            <i class="fa-solid fa-users-slash" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 20px; display: block;"></i>
+            <p style="color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase;">No Personnel Records Found.</p>
+        </div>
+        {% endfor %}
     </div>
-  </div>
 </div>
 
-<!-- Edit Employee Modal -->
-<div id="editModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-  <div class="card" style="width:400px; max-width:90%; padding:20px; border-radius:12px;">
-    <div class="card-header" style="padding:0 0 15px 0;">
-      <h3>Edit Employee Details</h3>
+<!-- Advanced Modal -->
+<div id="editModal">
+    <div class="modal-content">
+        <h3>Modify Personnel Data</h3>
+        <form id="editForm" class="cyber-form">
+            <input type="hidden" id="oldEid">
+            <div class="form-group">
+                <label>Primary Identifier</label>
+                <input type="text" id="editEid" required>
+            </div>
+            <div class="form-group">
+                <label>Personnel Name</label>
+                <input type="text" id="editName" required>
+            </div>
+            <div class="form-group">
+                <label>Department Core</label>
+                <input type="text" id="editDept">
+            </div>
+            <div class="form-group">
+                <label>Comms Link (Phone)</label>
+                <input type="text" id="editPhone">
+            </div>
+            <div class="form-group">
+                <label>Signal Address (Email)</label>
+                <input type="email" id="editEmail">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:15px; margin-top: 40px;">
+                <button type="button" class="btn-action" onclick="closeEditModal()">Abort</button>
+                <button type="submit" class="btn-action" style="background: var(--primary); color: #000; border: none; padding: 15px 30px;" id="saveEditBtn">Commit Changes</button>
+            </div>
+        </form>
     </div>
-    <form id="editForm">
-      <input type="hidden" id="oldEid">
-      <div style="margin-bottom:10px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Employee ID</label>
-        <input type="text" id="editEid" class="form-control" required style="width:100%;">
-      </div>
-      <div style="margin-bottom:10px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Name</label>
-        <input type="text" id="editName" class="form-control" required style="width:100%;">
-      </div>
-      <div style="margin-bottom:10px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Department</label>
-        <input type="text" id="editDept" class="form-control" style="width:100%;">
-      </div>
-      <div style="margin-bottom:10px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Phone</label>
-        <input type="text" id="editPhone" class="form-control" style="width:100%;">
-      </div>
-      <div style="margin-bottom:15px;">
-        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Email</label>
-        <input type="email" id="editEmail" class="form-control" style="width:100%;">
-      </div>
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
-      </div>
-    </form>
-  </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const dateInput = document.getElementById('attendanceDate');
-  if(dateInput) {
-    // Set default value to today's date in local time
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    dateInput.value = `${yyyy}-${mm}-${dd}`;
-  }
+    // --- Initialize Date ---
+    const dateInput = document.getElementById('attendanceDate');
+    if(dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
 });
 
 function openEditModal(id, name, dept, phone, email) {
-  document.getElementById('oldEid').value = id;
-  document.getElementById('editEid').value = id;
-  document.getElementById('editName').value = name;
-  document.getElementById('editDept').value = dept;
-  document.getElementById('editPhone').value = phone;
-  document.getElementById('editEmail').value = email;
-  document.getElementById('editModal').style.display = 'flex';
+    document.getElementById('oldEid').value = id;
+    document.getElementById('editEid').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editDept').value = dept;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editModal').style.display = 'flex';
 }
 
 function closeEditModal() {
-  document.getElementById('editModal').style.display = 'none';
+    document.getElementById('editModal').style.display = 'none';
 }
 
 document.getElementById('editForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const saveBtn = document.getElementById('saveEditBtn');
-  saveBtn.disabled = true;
-  saveBtn.textContent = "Saving...";
+    e.preventDefault();
+    const saveBtn = document.getElementById('saveEditBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
-  const payload = {
-    old_employee_id: document.getElementById('oldEid').value,
-    employee_id: document.getElementById('editEid').value,
-    name: document.getElementById('editName').value,
-    department: document.getElementById('editDept').value,
-    phone: document.getElementById('editPhone').value,
-    email: document.getElementById('editEmail').value
-  };
+    const payload = {
+        old_employee_id: document.getElementById('oldEid').value,
+        employee_id: document.getElementById('editEid').value,
+        name: document.getElementById('editName').value,
+        department: document.getElementById('editDept').value,
+        phone: document.getElementById('editPhone').value,
+        email: document.getElementById('editEmail').value
+    };
 
-  try {
-    const res = await fetch('/api/update_employee', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      location.reload();
-    } else {
-      alert(data.message || "Failed to update employee.");
-      saveBtn.disabled = false;
-      saveBtn.textContent = "Save Changes";
+    try {
+        const res = await fetch('/api/update_employee', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || "Encryption failure.");
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Commit Changes';
+        }
+    } catch (error) {
+        alert("Signal lost. Check network.");
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Commit Changes';
     }
-  } catch (error) {
-    console.error("Error updating employee:", error);
-    alert("Connection error. Try again.");
-    saveBtn.disabled = false;
-    saveBtn.textContent = "Save Changes";
-  }
 });
 
 async function markManual(id, name, status) {
-  const dateVal = document.getElementById('attendanceDate').value;
-  if (!dateVal) { 
-    alert("Please select a date first."); 
-    return; 
-  }
-  
-  if (!confirm(`Mark ${name} (${id}) as ${status} for ${dateVal}?`)) return;
-  const res = await fetch('/api/manual_attendance', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ employee_id: id, status: status, date: dateVal })
-  });
-  const data = await res.json();
-  if (data.success) {
-    alert(`${name} marked as ${status} on ${dateVal} successfully!`);
-  } else {
-    alert('Failed to mark manually.');
-  }
+    const dateVal = document.getElementById('attendanceDate').value;
+    if (!dateVal) { alert("Select temporal epoch (date)."); return; }
+    
+    if (!confirm(`Mark ${name} as ${status}?`)) return;
+    const res = await fetch('/api/manual_attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id: id, status: status, date: dateVal })
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert(`Status updated for ${name}.`);
+    } else {
+        alert('Data corruption during manual entry.');
+    }
 }
 
 async function delEmp(id, name) {
-  if (!confirm(`Delete ${name} (${id})? This will also remove their attendance records.`)) return;
-  const res  = await fetch('/api/delete_employee/' + id, { method:'POST' });
-  const data = await res.json();
-  if (data.success) location.reload();
-  else alert('Failed to delete employee.');
+    if (!confirm(`Purge ${name} from core memory?`)) return;
+    const res  = await fetch('/api/delete_employee/' + id, { method:'POST' });
+    const data = await res.json();
+    if (data.success) location.reload();
+    else alert('Purge failed.');
 }
 </script>
+
 {% endblock %}

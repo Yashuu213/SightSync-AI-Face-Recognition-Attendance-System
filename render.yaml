@@ -1,8 +1,8 @@
 services:
-  # 1. Keya Fusion Unified System (Admin + User Panel)
+  # 1. SightSync AI Unified System (Admin + User Panel)
   # Admin is at "/" and User Kiosk is at "/user"
   - type: web
-    name: keya-fusion-system
+    name: sightsync-system
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app

@@ -1,281 +1,522 @@
 {% extends 'base.html' %}
-{% block title %}Add New Employee{% endblock %}
+{% block title %}Neural Registration{% endblock %}
 {% block content %}
 
-<div class="card" style="max-width:900px;margin:0 auto;">
-  <div class="card-header">
-    <h3><i class="fa-solid fa-user-plus"></i> Register New Employee</h3>
-    <p class="sub">Fill in details, open camera, then click <b>Capture Samples</b>. The system will automatically
-      collect 20 live face shots and train the model.</p>
-  </div>
-  <div class="card-body">
-
-    <!-- Employee Form Fields -->
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Employee ID <span class="req">*</span></label>
-        <input id="f_id" class="form-control" placeholder="EMP001" required>
-      </div>
-      <div class="form-group">
-        <label>Full Name <span class="req">*</span></label>
-        <input id="f_name" class="form-control" placeholder="Rahul Sharma" required>
-      </div>
-      <div class="form-group">
-        <label>Department</label>
-        <select id="f_dept" class="form-control">
-          <option>IT</option>
-          <option>HR</option>
-          <option>Finance</option>
-          <option>Operations</option>
-          <option>Sales</option>
-          <option>Management</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Phone</label>
-        <input id="f_phone" class="form-control" placeholder="+91 98765 43210">
-      </div>
-      <div class="form-group" style="grid-column:span 2">
-        <label>Email</label>
-        <input id="f_email" type="email" class="form-control" placeholder="rahul@company.com">
-      </div>
-    </div>
-
-    <!-- Live Camera Section -->
-    <div class="cam-section mt-4">
-      <h4><i class="fa-solid fa-video"></i> Live Face Capture</h4>
-
-      <div class="cam-box" id="camBox">
-        <video id="vid" autoplay playsinline muted></video>
-        <div class="cam-overlay" id="camOverlay">
-          <i class="fa-solid fa-camera" style="font-size:3rem;opacity:.4;"></i>
-          <p style="margin-top:8px;">Camera not started</p>
-        </div>
-        <!-- progress bar -->
-        <div class="capture-bar" id="captureBar" style="display:none;">
-          <div class="capture-fill" id="captureFill"></div>
-          <span id="captureLabel">0 / 20 samples</span>
-        </div>
-      </div>
-
-      <div class="cam-controls mt-3">
-        <button class="btn btn-secondary" id="btnStart"><i class="fa-solid fa-play"></i> Start Camera</button>
-        <button class="btn btn-success" id="btnCapture" disabled><i class="fa-solid fa-circle-dot"></i> Capture 20
-          Samples</button>
-        <button class="btn btn-primary" id="btnRegister" disabled><i class="fa-solid fa-floppy-disk"></i> Register
-          Employee</button>
-      </div>
-    </div>
-
-    <div id="msg" class="msg-box" style="display:none;"></div>
-
-  </div>
-</div>
-
 <style>
-  .req {
-    color: #EF4444;
-  }
+    :root {
+        --primary: #00f2ff;
+        --secondary: #7000ff;
+        --glass-bg: rgba(255, 255, 255, 0.02);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-dim: rgba(255, 255, 255, 0.5);
+    }
 
-  .cam-section h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    color: #374151;
-  }
+    .registration-matrix {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+        animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
 
-  .cam-box {
-    position: relative;
-    width: 480px;
-    height: 360px;
-    background: #111;
-    border-radius: 12px;
-    overflow: hidden;
-    margin: 0 auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, .2);
-  }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(40px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-  #vid {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    display: none;
-  }
+    /* ── 3D Registration Hub ── */
+    .hub-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 32px;
+        padding: 50px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.4);
+    }
 
-  .cam-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-  }
+    .hub-card::before {
+        content: '';
+        position: absolute;
+        top: -100px; right: -100px;
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, rgba(0, 242, 255, 0.05) 0%, transparent 70%);
+        pointer-events: none;
+    }
 
-  .capture-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    background: rgba(0, 0, 0, .5);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 10px;
-    color: #fff;
-    font-size: .82rem;
-    font-weight: 600;
-    z-index: 10;
-  }
+    .hub-header {
+        grid-column: 1 / -1;
+        margin-bottom: 20px;
+    }
 
-  .capture-fill {
-    height: 8px;
-    border-radius: 4px;
-    background: #00ff88;
-    transition: width .2s;
-  }
+    .hub-header h2 {
+        font-family: 'Syncopate', sans-serif;
+        font-size: 1.5rem;
+        letter-spacing: 5px;
+        text-transform: uppercase;
+        color: var(--primary);
+        text-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    }
 
-  .cam-controls {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+    .hub-header p {
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        margin-top: 10px;
+    }
 
-  .msg-box {
-    padding: 14px 20px;
-    border-radius: 10px;
-    margin-top: 16px;
-    font-weight: 500;
-  }
+    /* ── Form Styling ── */
+    .cyber-form {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
 
-  .msg-ok {
-    background: #D1FAE5;
-    color: #065F46;
-  }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
 
-  .msg-err {
-    background: #FEE2E2;
-    color: #991B1B;
-  }
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .input-group label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        margin-left: 5px;
+    }
+
+    .cyber-input-wrapper {
+        position: relative;
+    }
+
+    .cyber-input-wrapper i {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--primary);
+        opacity: 0.5;
+    }
+
+    .cyber-input-wrapper input, .cyber-input-wrapper select {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 16px 16px 16px 50px;
+        color: #fff;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.3s;
+    }
+
+    .cyber-input-wrapper input:focus {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: var(--primary);
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+    }
+
+    /* ── Camera HUD ── */
+    .camera-hud {
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        aspect-ratio: 1;
+        background: #000;
+        border: 2px solid var(--glass-border);
+        box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+    }
+
+    #vid {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        display: none;
+    }
+
+    .hud-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+    }
+
+    .hud-brackets {
+        position: absolute;
+        inset: 30px;
+        border: 1px solid rgba(0, 242, 255, 0.2);
+        border-radius: 20px;
+    }
+
+    .hud-brackets::before, .hud-brackets::after {
+        content: '';
+        position: absolute;
+        width: 40px; height: 40px;
+        border: 3px solid var(--primary);
+    }
+
+    .hud-brackets::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .hud-brackets::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+    .scanning-laser {
+        position: absolute;
+        width: 100%;
+        height: 4px;
+        background: var(--primary);
+        box-shadow: 0 0 20px var(--primary);
+        top: 0;
+        animation: hudScan 4s ease-in-out infinite;
+        opacity: 0;
+    }
+
+    @keyframes hudScan {
+        0%, 100% { top: 10%; opacity: 0; }
+        50% { top: 90%; opacity: 0.6; }
+    }
+
+    .capture-progress {
+        position: absolute;
+        bottom: 25px;
+        left: 25px;
+        right: 25px;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        padding: 15px 20px;
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+    }
+
+    .progress-track {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--primary);
+        box-shadow: 0 0 15px var(--primary);
+        transition: width 0.3s;
+    }
+
+    .progress-status {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: var(--primary);
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    /* ── Action Buttons ── */
+    .action-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    .btn-cyber {
+        width: 100%;
+        padding: 18px;
+        border-radius: 16px;
+        font-size: 0.9rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        border: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+    }
+
+    .btn-cyber:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-2px);
+    }
+
+    .btn-cyber.btn-primary-action {
+        background: var(--primary);
+        color: #000;
+        border: none;
+        box-shadow: 0 10px 25px -5px rgba(0, 242, 255, 0.3);
+    }
+
+    .btn-cyber.btn-primary-action:hover:not(:disabled) {
+        background: #fff;
+        color: #000;
+        box-shadow: 0 15px 35px -5px rgba(0, 242, 255, 0.5);
+    }
+
+    .btn-cyber:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    #msg {
+        grid-column: 1 / -1;
+        margin-top: 20px;
+        padding: 15px 25px;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        display: none;
+        text-align: center;
+        border: 1px solid transparent;
+    }
+
+    @media (max-width: 900px) {
+        .hub-card { grid-template-columns: 1fr; padding: 30px; }
+    }
 </style>
 
+<div class="registration-matrix">
+    <div class="hub-card">
+        <div class="hub-header">
+            <h2>Neural Registration</h2>
+            <p>Initialize Personnel Entry & Biometric Encoding</p>
+        </div>
+
+        <!-- Left: Form -->
+        <div class="cyber-form">
+            <div class="input-group">
+                <label>Unit Identifier</label>
+                <div class="cyber-input-wrapper">
+                    <i class="fa-solid fa-id-badge"></i>
+                    <input id="f_id" placeholder="EMP_0XX" required>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Personnel Full Name</label>
+                <div class="cyber-input-wrapper">
+                    <i class="fa-solid fa-signature"></i>
+                    <input id="f_name" placeholder="Enter Full Name" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Department Core</label>
+                    <div class="cyber-input-wrapper">
+                        <i class="fa-solid fa-sitemap"></i>
+                        <select id="f_dept">
+                            <option>IT_DEV</option>
+                            <option>HR_CORE</option>
+                            <option>FIN_SYS</option>
+                            <option>OPS_NET</option>
+                            <option>SALES_EXT</option>
+                            <option>MGMT_HUB</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Comms Link</label>
+                    <div class="cyber-input-wrapper">
+                        <i class="fa-solid fa-phone"></i>
+                        <input id="f_phone" placeholder="+XX XXXX">
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Signal Address</label>
+                <div class="cyber-input-wrapper">
+                    <i class="fa-solid fa-envelope"></i>
+                    <input id="f_email" type="email" placeholder="user@node.com">
+                </div>
+            </div>
+
+            <div class="action-stack">
+                <button class="btn-cyber" id="btnStart"><i class="fa-solid fa-power-off"></i> Initialize Vision</button>
+                <button class="btn-cyber" id="btnCapture" disabled><i class="fa-solid fa-expand"></i> Capture Neural Samples</button>
+                <button class="btn-cyber btn-primary-action" id="btnRegister" disabled><i class="fa-solid fa-database"></i> Commit to Core</button>
+            </div>
+        </div>
+
+        <!-- Right: Camera HUD -->
+        <div class="camera-hud-container">
+            <div class="camera-hud">
+                <video id="vid" autoplay playsinline muted></video>
+                <div class="hud-overlay" id="hudDefault">
+                    <div class="hud-brackets"></div>
+                    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-dim);">
+                        <i class="fa-solid fa-video-slash" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                        <p style="text-transform: uppercase; letter-spacing: 3px; font-size: 0.7rem;">Sensor_Offline</p>
+                    </div>
+                </div>
+                <div class="scanning-laser" id="laser"></div>
+                
+                <div class="capture-progress" id="captureHUD">
+                    <div class="progress-status">
+                        <span>Encoding_Samples</span>
+                        <span id="pctLabel">0%</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progFill"></div>
+                    </div>
+                    <div style="font-size: 0.6rem; color: var(--text-dim); text-align: center;" id="sampleCount">0 / 20 SHOTS</div>
+                </div>
+            </div>
+            <p style="text-align: center; color: var(--text-dim); font-size: 0.65rem; margin-top: 20px; letter-spacing: 1px; text-transform: uppercase;">
+                Ensure high lighting & clear facial visibility.
+            </p>
+        </div>
+
+        <div id="msg"></div>
+    </div>
+</div>
+
 <script>
-  (function () {
-    const vid = document.getElementById('vid');
-    const camOverlay = document.getElementById('camOverlay');
-    const captureBar = document.getElementById('captureBar');
-    const captureFill = document.getElementById('captureFill');
-    const captureLabel = document.getElementById('captureLabel');
-    const btnStart = document.getElementById('btnStart');
-    const btnCapture = document.getElementById('btnCapture');
-    const btnRegister = document.getElementById('btnRegister');
-    const msg = document.getElementById('msg');
+    (function () {
+        const vid = document.getElementById('vid');
+        const hudDefault = document.getElementById('hudDefault');
+        const laser = document.getElementById('laser');
+        const captureHUD = document.getElementById('captureHUD');
+        const progFill = document.getElementById('progFill');
+        const pctLabel = document.getElementById('pctLabel');
+        const sampleCount = document.getElementById('sampleCount');
+        const btnStart = document.getElementById('btnStart');
+        const btnCapture = document.getElementById('btnCapture');
+        const btnRegister = document.getElementById('btnRegister');
+        const msg = document.getElementById('msg');
 
-    let stream = null;
-    let frames = [];
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const TOTAL = 20;
+        let stream = null;
+        let frames = [];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const TOTAL = 20;
 
-    // ── Start Camera ──────────────────────────────────────────────────────────
-    btnStart.addEventListener('click', async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: 640, height: 480 }
+
+        btnStart.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
+                });
+                vid.srcObject = stream;
+                vid.style.display = 'block';
+                hudDefault.style.display = 'none';
+                laser.style.opacity = '0.6';
+                btnCapture.disabled = false;
+                btnStart.innerHTML = '<i class="fa-solid fa-check"></i> Vision_Active';
+                btnStart.style.color = 'var(--primary)';
+                showMsg('Biometric sensor initialized.', 'success');
+            } catch (e) {
+                showMsg('Sensor failure: ' + e.message, 'danger');
+            }
         });
-        vid.srcObject = stream;
-        vid.style.display = 'block';
-        camOverlay.style.display = 'none';
-        btnCapture.disabled = false;
-        showMsg('Camera ready. Face the screen and click Capture.', 'ok');
-      } catch (e) {
-        showMsg('Camera error: ' + e.message + '. Please allow camera access in browser.', 'err');
-      }
-    });
 
-    // ── Capture Samples ───────────────────────────────────────────────────────
-    btnCapture.addEventListener('click', () => {
-      if (!stream) return;
-      frames = [];
-      btnCapture.disabled = true;
-      btnRegister.disabled = true;
-      captureBar.style.display = 'flex';
-      captureFill.style.width = '0%';
-      let count = 0;
+        btnCapture.addEventListener('click', () => {
+            if (!stream) return;
+            frames = [];
+            btnCapture.disabled = true;
+            btnRegister.disabled = true;
+            captureHUD.style.display = 'flex';
+            let count = 0;
 
-      canvas.width = vid.videoWidth || 640;
-      canvas.height = vid.videoHeight || 480;
+            canvas.width = vid.videoWidth || 640;
+            canvas.height = vid.videoHeight || 480;
 
-      const interval = setInterval(() => {
-        ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-        frames.push(canvas.toDataURL('image/jpeg', 0.85));
-        count++;
-        const pct = Math.round((count / TOTAL) * 100);
-        captureFill.style.width = pct + '%';
-        captureLabel.textContent = `${count} / ${TOTAL} samples`;
+            const interval = setInterval(() => {
+                ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+                frames.push(canvas.toDataURL('image/jpeg', 0.85));
+                count++;
+                const pct = Math.round((count / TOTAL) * 100);
+                progFill.style.width = pct + '%';
+                pctLabel.textContent = pct + '%';
+                sampleCount.textContent = `${count} / ${TOTAL} SHOTS`;
 
-        if (count >= TOTAL) {
-          clearInterval(interval);
-          captureBar.style.background = 'rgba(5, 150, 105, .7)';
-          captureLabel.textContent = '✓ Done! Click Register Employee.';
-          btnRegister.disabled = false;
-          showMsg(`${TOTAL} face samples captured successfully. Now click Register Employee.`, 'ok');
-        }
-      }, 250); // every 250ms = 20 frames in 5 seconds
-    });
-
-    // ── Register ──────────────────────────────────────────────────────────────
-    btnRegister.addEventListener('click', async () => {
-      const eid = document.getElementById('f_id').value.trim();
-      const name = document.getElementById('f_name').value.trim();
-      if (!eid || !name) { showMsg('Employee ID and Name are required.', 'err'); return; }
-      if (frames.length === 0) { showMsg('Please capture face samples first.', 'err'); return; }
-
-      btnRegister.disabled = true;
-      btnRegister.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-      showMsg('Encoding face data on server, please wait...', 'ok');
-
-      try {
-        const res = await fetch('/api/add_employee', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            employee_id: eid,
-            name,
-            department: document.getElementById('f_dept').value,
-            phone: document.getElementById('f_phone').value,
-            email: document.getElementById('f_email').value,
-            frames
-          })
+                if (count >= TOTAL) {
+                    clearInterval(interval);
+                    btnRegister.disabled = false;
+                    showMsg('Neural encoding complete. Ready for core commit.', 'success');
+                }
+            }, 250);
         });
-        const data = await res.json();
 
-        if (data.success) {
-          showMsg(data.message, 'ok');
-          if (stream) stream.getTracks().forEach(t => t.stop());
-          setTimeout(() => { window.location.href = '/employees'; }, 2200);
-        } else {
-          showMsg(data.message, 'err');
-          btnRegister.disabled = false;
+        btnRegister.addEventListener('click', async () => {
+            const eid = document.getElementById('f_id').value.trim();
+            const name = document.getElementById('f_name').value.trim();
+            if (!eid || !name) { showMsg('Incomplete identifiers.', 'danger'); return; }
+            
+            btnRegister.disabled = true;
+            const originalHTML = btnRegister.innerHTML;
+            btnRegister.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Committing...';
+            showMsg('Pushing data to neural core...', 'info');
+
+            try {
+                const res = await fetch('/api/add_employee', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        employee_id: eid,
+                        name,
+                        department: document.getElementById('f_dept').value,
+                        phone: document.getElementById('f_phone').value,
+                        email: document.getElementById('f_email').value,
+                        frames
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showMsg('Personnel record successfully committed to core.', 'success');
+                    if (stream) stream.getTracks().forEach(t => t.stop());
+                    setTimeout(() => { window.location.href = '/employees'; }, 2000);
+                } else {
+                    showMsg(data.message, 'danger');
+                    btnRegister.disabled = false;
+                    btnRegister.innerHTML = originalHTML;
+                }
+            } catch (e) {
+                showMsg('Core link failure: ' + e.message, 'danger');
+                btnRegister.disabled = false;
+                btnRegister.innerHTML = originalHTML;
+            }
+        });
+
+        function showMsg(text, type) {
+            msg.style.display = 'block';
+            msg.className = '';
+            msg.style.background = 'rgba(0,0,0,0.4)';
+            msg.style.color = '#fff';
+            msg.style.borderColor = 'var(--glass-border)';
+            
+            if (type === 'success') { msg.style.color = '#00ff88'; msg.style.borderColor = '#00ff8833'; }
+            if (type === 'danger') { msg.style.color = '#ff3e3e'; msg.style.borderColor = '#ff3e3e33'; }
+            if (type === 'info') { msg.style.color = 'var(--primary)'; msg.style.borderColor = '#00f2ff33'; }
+            
+            msg.innerHTML = `> ${text.toUpperCase()}`;
         }
-      } catch (e) {
-        console.error('Registration error:', e);
-        showMsg('Server connection error: ' + e.message + '. Check if the server is running and the payload size is not too large.', 'err');
-        btnRegister.disabled = false;
-      }
-
-      btnRegister.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Register Employee';
-    });
-
-    function showMsg(text, type) {
-      msg.style.display = 'block';
-      msg.className = 'msg-box msg-' + type;
-      msg.innerHTML = text;
-    }
-  })();
+    })();
 </script>
 
 {% endblock %}
