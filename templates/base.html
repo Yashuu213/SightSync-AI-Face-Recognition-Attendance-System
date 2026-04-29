@@ -12,17 +12,18 @@
     <meta name="theme-color" content="#00f2ff">
     <style>
         :root {
-            --primary: #818cf8; /* Vibrant Indigo */
-            --secondary: #c084fc; /* Soft Purple */
-            --bg-dark: #020617; /* Deep Midnight */
-            --card-bg: rgba(255, 255, 255, 0.03); 
-            --border: rgba(255, 255, 255, 0.08);
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --danger: #f87171;
-            --success: #4ade80;
-            --warning: #fbbf24;
-            --glass-blur: 25px;
+            --primary: #7B61FF;
+            --secondary: #00E396;
+            --bg-dark: #080A15;
+            --card-bg: #11131E; 
+            --border: #1E2235;
+            --text-main: #FFFFFF;
+            --text-dim: #8A92A6;
+            --danger: #FF4560;
+            --success: #00E396;
+            --warning: #FEB019;
+            --info: #008FFB;
+            --glass-blur: 15px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,12 +41,7 @@
             position: fixed;
             inset: 0;
             z-index: -1;
-            background: #020617;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+            background: var(--bg-dark);
         }
 
         /* ── Modern Layout ── */
@@ -56,11 +52,10 @@
 
         /* ── Cyber Sidebar ── */
         .sidebar {
-            width: 280px;
-            background: rgba(15, 23, 42, 0.3);
-            backdrop-filter: blur(var(--glass-blur));
+            width: 260px;
+            background: var(--card-bg);
             border-right: 1px solid var(--border);
-            padding: 40px 20px;
+            padding: 24px 16px;
             display: flex;
             flex-direction: column;
             position: fixed;
@@ -70,70 +65,67 @@
         }
 
         .brand {
-            margin-bottom: 50px;
-            padding: 0 15px;
+            margin-bottom: 40px;
+            padding: 0 10px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .brand img { 
-            height: 52px; 
-            width: 52px; 
-            border-radius: 16px; 
+            height: 40px; 
+            width: 40px; 
+            border-radius: 50%; 
             object-fit: cover; 
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, var(--primary), var(--info));
             padding: 2px;
-            box-shadow: 0 8px 20px rgba(129, 140, 248, 0.3);
+            box-shadow: 0 0 15px rgba(123, 97, 255, 0.4);
         }
         .brand-text { display: flex; flex-direction: column; }
-        .main-brand { font-family: 'Syncopate', sans-serif; font-weight: 700; font-size: 1rem; color: #fff; letter-spacing: 2px; }
-        .sub-brand { font-size: 0.6rem; color: var(--primary); letter-spacing: 3px; font-weight: 800; }
+        .main-brand { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1rem; color: #fff; letter-spacing: 1px; }
+        .sub-brand { font-size: 0.65rem; color: var(--text-dim); }
 
         .nav-menu {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
             flex: 1;
         }
 
         .nav-link {
-            padding: 14px 20px;
-            border-radius: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
             color: var(--text-dim);
             text-decoration: none;
             display: flex;
             align-items: center;
             gap: 15px;
             font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.3s;
+            font-weight: 500;
+            transition: all 0.2s;
             border: 1px solid transparent;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
-        .nav-link i { font-size: 1.1rem; width: 24px; text-align: center; }
+        .nav-link i { font-size: 1.1rem; width: 24px; text-align: center; transition: color 0.2s; }
 
         .nav-link:hover {
-            color: var(--primary);
-            background: rgba(0, 242, 255, 0.05);
-            border-color: rgba(0, 242, 255, 0.1);
-            transform: translateX(5px);
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .nav-link.active {
-            background: rgba(0, 242, 255, 0.1);
-            color: var(--primary);
-            border-color: rgba(0, 242, 255, 0.2);
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.05);
+            background: linear-gradient(90deg, rgba(123, 97, 255, 0.8) 0%, rgba(123, 97, 255, 0.2) 100%);
+            color: #fff;
+            border: 1px solid rgba(123, 97, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(123, 97, 255, 0.15);
         }
+        .nav-link.active i { color: #fff; }
 
         /* ── Main Workspace ── */
         .main {
             flex: 1;
-            margin-left: 280px;
-            padding: 40px;
+            margin-left: 260px;
+            padding: 24px 32px;
             min-height: 100vh;
             position: relative;
         }
@@ -142,101 +134,71 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
         }
 
-        .page-title {
-            font-family: 'Syncopate', sans-serif;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            color: var(--text-dim);
+        .search-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 16px;
             display: flex;
             align-items: center;
+            gap: 12px;
+            width: 300px;
+        }
+
+        .search-bar i { color: var(--text-dim); }
+        .search-bar input {
+            background: transparent; border: none; color: #fff; outline: none; width: 100%;
+            font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem;
+        }
+        .search-bar .shortcut {
+            background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;
+            font-size: 0.7rem; color: var(--text-dim); font-weight: 600;
         }
 
         .admin-profile {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 8px 15px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            border: 1px solid var(--border);
+            gap: 12px;
         }
 
-        .admin-profile i { color: var(--primary); }
+        .admin-profile img {
+            width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+        }
+
+        .admin-info { display: flex; flex-direction: column; }
+        .admin-info strong { font-size: 0.85rem; font-weight: 600; }
+        .admin-info small { font-size: 0.7rem; color: var(--text-dim); }
+
+        .top-icons {
+            display: flex; gap: 16px; margin-right: 20px; color: var(--text-dim); font-size: 1.1rem;
+        }
+        .top-icons i { cursor: pointer; transition: color 0.2s; position: relative; }
+        .top-icons i:hover { color: #fff; }
+        .top-icons .badge {
+            position: absolute; top: 0px; right: -4px; width: 8px; height: 8px;
+            background: var(--primary); border-radius: 50%; border: 2px solid var(--bg-dark);
+        }
 
         .top-bar-actions {
             display: flex;
             align-items: center;
-            gap: 20px;
         }
 
-        .system-status {
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            color: var(--text-dim);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 15px;
-            border-left: 1px solid var(--border);
-        }
-
-        .pulse-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--success);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--success);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        .brand-text {
-            display: flex;
-            flex-direction: column;
-            line-height: 1;
-        }
-
-        .main-brand {
-            font-family: 'Syncopate', sans-serif;
-            font-weight: 700;
-            letter-spacing: 3px;
-            font-size: 0.9rem;
-            color: #fff;
-        }
-
-        .sub-brand {
-            font-size: 0.6rem;
-            letter-spacing: 2px;
-            color: var(--primary);
-            opacity: 0.7;
-            margin-top: 4px;
-        }
-
-        /* ── Global Card Design (3D Ready) ── */
+        /* ── Global Card Design ── */
         .glass-card {
             background: var(--card-bg);
-            backdrop-filter: blur(25px);
             border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            transition: transform 0.3s ease, border-color 0.3s ease;
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
         .glass-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.15);
         }
 
         /* ── Scrollbar ── */
@@ -304,7 +266,14 @@
                 </a>
             </nav>
 
-            <div style="margin-top: 20px;">
+            <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid var(--border);">
+                <div class="admin-profile" style="margin-bottom: 15px;">
+                    <img src="https://ui-avatars.com/api/?name=Admin&background=7B61FF&color=fff" alt="Admin">
+                    <div class="admin-info">
+                        <strong>System Admin</strong>
+                        <small>Admin</small>
+                    </div>
+                </div>
                 <a href="{{ url_for('logout') }}" class="nav-link" style="color: var(--danger);">
                     <i class="fa-solid fa-power-off"></i>System Exit
                 </a>
@@ -312,26 +281,9 @@
         </aside>
 
         <main class="main">
-            <header class="top-bar">
-                <div style="display: flex; align-items: center; gap: 24px;">
-                    <button class="mobile-btn" id="menuToggle"><i class="fa-solid fa-bars-staggered"></i></button>
-                    <div class="page-title">
-                        <span style="opacity: 0.4; margin-right: 10px;">SYSTEM_PATH //</span>
-                        <span style="background: linear-gradient(90deg, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">{{ self.title()|upper }}</span>
-                    </div>
-                </div>
-                <div class="top-bar-actions">
-                    <div class="system-status">
-                        <span class="pulse-dot"></span>
-                        NETWORK_SECURE
-                    </div>
-                    <div class="admin-profile">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span style="font-size: 0.75rem; font-weight: 700; letter-spacing: 2px;">ADMIN_SESSION</span>
-                    </div>
-                </div>
-            </header>
-
+            <!-- Mobile Toggle Only -->
+            <button class="mobile-btn" id="menuToggle" style="margin-bottom: 15px;"><i class="fa-solid fa-bars-staggered"></i></button>
+            
             {% block content %}{% endblock %}
         </main>
     </div>

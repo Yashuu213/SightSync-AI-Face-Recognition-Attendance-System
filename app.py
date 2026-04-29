@@ -27,7 +27,7 @@ def reload_faces():
     global known_encodings, known_ids, id_to_name
     known_encodings, known_ids = [], []
     id_to_name = {}
-    for emp in get_all_employees():
+    for emp in get_all_employees(include_encoding=True):
         eid = emp['employee_id']
         name = emp['name']
         known_ids.append(eid)
@@ -93,7 +93,7 @@ def index():
         
     employees = get_all_employees()
     today = datetime.now().strftime('%Y-%m-%d')
-    all_logs = get_attendance_logs() # All logs for "Recent Attendance" table
+    all_logs = get_attendance_logs(limit=8) # Fetch only what is displayed on the dashboard
     
     # Get only today's logs for status overview
     today_records = get_attendance_logs(today)

@@ -110,10 +110,13 @@ def add_employee(employee_id, name, department, phone, email, face_encoding_byte
     finally:
         conn.close()
 
-def get_all_employees():
+def get_all_employees(include_encoding=False):
     conn = get_db_connection()
     cursor = get_cursor(conn)
-    cursor.execute('SELECT * FROM employees')
+    if include_encoding:
+        cursor.execute('SELECT * FROM employees')
+    else:
+        cursor.execute('SELECT employee_id, name, department, phone, email FROM employees')
     employees = cursor.fetchall()
     conn.close()
     return employees
@@ -245,27 +248,28 @@ def mark_attendance(employee_id):
             conn.close()
             return "ERROR", f"System Sync Error"
 
-def get_attendance_logs(date=None):
+def get_attendance_logs(date=None, limit=None):
     conn = get_db_connection()
     cursor = get_cursor(conn)
     p = get_placeholder()
+    
+    query = '''
+        SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time, a.overtime_hours
+        FROM attendance a 
+        JOIN employees e ON a.employee_id = e.employee_id
+    '''
+    
+    params = []
     if date:
-        query = f'''
-            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time, a.overtime_hours
-            FROM attendance a 
-            JOIN employees e ON a.employee_id = e.employee_id
-            WHERE a.date = {p}
-            ORDER BY a.login_time DESC
-        '''
-        cursor.execute(query, (date,))
-    else:
-        query = '''
-            SELECT a.id, a.employee_id, e.name, e.department, a.date, a.login_time, a.logout_time, a.overtime_hours
-            FROM attendance a 
-            JOIN employees e ON a.employee_id = e.employee_id
-            ORDER BY a.date DESC, a.login_time DESC
-        '''
-        cursor.execute(query)
+        query += f" WHERE a.date = {p} "
+        params.append(date)
+        
+    query += " ORDER BY a.date DESC, a.login_time DESC "
+    
+    if limit:
+        query += f" LIMIT {int(limit)} "
+        
+    cursor.execute(query, tuple(params))
     logs = cursor.fetchall()
     conn.close()
     return logs

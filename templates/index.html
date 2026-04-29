@@ -1,321 +1,607 @@
 {% extends 'base.html' %}
-{% block title %}Operational Matrix{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
 
-<style>
+{% set rate = (present_today / total_employees * 100)|round(2) if total_employees > 0 else 0 %}
 
-    .dashboard-matrix {
-        animation: dashboardEnter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+<style>
+    .dashboard-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        height: calc(100vh - 40px); /* Fit within screen with less top/bottom margin */
+        overflow: hidden; /* Prevent page scroll */
+        animation: fadeUp 0.6s ease-out;
     }
 
-    @keyframes dashboardEnter {
-        from { opacity: 0; transform: translateY(30px); }
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── 3D Stats Row ── */
-    .stats-matrix {
+    /* ── Top Stats Row ── */
+    .stats-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 25px;
-        margin-bottom: 40px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        flex-shrink: 0;
     }
 
-    .stat-card-3d {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
-        border-radius: 28px;
-        padding: 30px;
+    .stat-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 25px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
         position: relative;
         overflow: hidden;
-        transition: all 0.3s;
-        transform-style: preserve-3d;
     }
 
-    .stat-card-3d:hover {
-        border-color: var(--primary);
-        background: rgba(255, 255, 255, 0.05);
+    .stat-icon {
+        width: 52px; height: 52px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; flex-shrink: 0;
     }
 
-    .stat-card-3d i {
-        font-size: 2.5rem;
-        position: absolute;
-        top: 20px; right: 20px;
-        opacity: 0.1;
-        color: var(--primary);
-        transition: all 0.3s;
+    .stat-icon.purple { background: rgba(123, 97, 255, 0.15); color: var(--primary); box-shadow: 0 0 10px rgba(123, 97, 255, 0.2); }
+    .stat-icon.green { background: rgba(0, 227, 150, 0.15); color: var(--success); box-shadow: 0 0 10px rgba(0, 227, 150, 0.2); }
+    .stat-icon.orange { background: rgba(255, 69, 96, 0.15); color: var(--danger); box-shadow: 0 0 10px rgba(255, 69, 96, 0.2); }
+    .stat-icon.blue { background: rgba(0, 143, 251, 0.15); color: var(--info); box-shadow: 0 0 10px rgba(0, 143, 251, 0.2); }
+
+    .stat-info { display: flex; flex-direction: column; z-index: 2; }
+    .stat-info p { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 2px; }
+    .stat-info h3 { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .stat-info small { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+
+    .stat-badge {
+        position: absolute; right: 20px; bottom: 20px;
+        font-size: 0.7rem; font-weight: 600; padding: 4px 8px; border-radius: 6px;
     }
+    .badge-up { background: rgba(123, 97, 255, 0.1); color: var(--primary); }
+    .badge-green { background: rgba(0, 227, 150, 0.1); color: var(--success); }
+    .badge-down { background: rgba(255, 69, 96, 0.1); color: var(--danger); }
+    .badge-blue { background: rgba(0, 143, 251, 0.1); color: var(--info); }
 
-    .stat-card-3d:hover i { opacity: 0.3; transform: scale(1.2) rotate(-10deg); }
-
-    .stat-label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: var(--text-dim);
-        margin-bottom: 10px;
-        display: block;
-    }
-
-    .stat-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #fff;
-        font-family: 'Space Grotesk', sans-serif;
-    }
-
-    /* ── Live Activity Feeds ── */
-    .activity-grid {
+    /* ── Middle Row ── */
+    .main-row {
         display: grid;
-        grid-template-columns: 1.5fr 1fr;
-        gap: 30px;
-        margin-bottom: 40px;
+        grid-template-columns: 1fr 1.8fr;
+        gap: 20px;
+        flex: 1.5; /* Take more vertical space */
+        min-height: 0; /* Crucial for internal scrolling */
     }
 
-    .feed-card {
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 32px;
-        padding: 40px;
-        height: 600px;
+    .glass-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 25px;
         display: flex;
         flex-direction: column;
+        transition: border-color 0.2s ease;
+        min-height: 0;
     }
 
-    .feed-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
+    .glass-card:hover { border-color: rgba(255,255,255,0.1); }
+
+    .card-header {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;
+    }
+    .card-header h2 { font-size: 1.1rem; font-weight: 600; }
+    .card-header select, .card-header .view-all {
+        background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+        color: var(--text-dim); font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; outline: none; text-decoration: none;
     }
 
-    .feed-header h3 {
-        font-family: 'Syncopate', sans-serif;
-        font-size: 0.85rem;
-        letter-spacing: 3px;
-        color: var(--primary);
+    /* Donut Chart */
+    .donut-container { display: flex; align-items: center; justify-content: space-around; margin-bottom: 15px; flex: 1; }
+    .donut-chart {
+        width: 140px; height: 140px; border-radius: 50%;
+        background: conic-gradient(var(--success) 0% {{ rate }}%, var(--danger) {{ rate }}% 100%);
+        display: flex; align-items: center; justify-content: center;
     }
-
-    .feed-body {
-        flex: 1;
-        overflow-y: auto;
-        padding-right: 10px;
+    .donut-inner {
+        width: 100px; height: 100px; border-radius: 50%; background: var(--card-bg);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
+    .donut-inner h3 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+    .donut-inner p { font-size: 0.75rem; color: var(--text-dim); }
 
-    .feed-body::-webkit-scrollbar { width: 4px; }
-    .feed-body::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+    .donut-legend { display: flex; flex-direction: column; gap: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+    .legend-val { font-weight: 700; color: #fff; margin-left: 8px; }
 
-    /* ── Personnel List ── */
-    .personnel-item {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--glass-border);
-        border-radius: 16px;
-        padding: 18px 25px;
-        margin-bottom: 15px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.3s;
-    }
+    .overview-stats { display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 12px; flex-shrink: 0; }
+    .o-stat { display: flex; flex-direction: column; gap: 2px; }
+    .o-stat p { font-size: 0.6rem; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+    .o-stat h4 { font-size: 1.1rem; font-weight: 600; color: #fff; }
 
-    .personnel-item:hover { background: rgba(255, 255, 255, 0.04); border-color: var(--primary); }
+    /* Recent Table */
+    .table-wrapper { flex: 1; overflow-y: auto; padding-right: 5px; }
+    .table-wrapper::-webkit-scrollbar { width: 4px; }
+    .table-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    .personnel-info h4 { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px; }
-    .personnel-info p { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 10px; color: var(--text-dim); font-size: 0.65rem; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card-bg); z-index: 10; }
+    td { padding: 10px 10px; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.02); }
+    .td-user { display: flex; align-items: center; gap: 8px; }
+    .td-user img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+    
+    .badge { padding: 3px 8px; border-radius: 10px; font-size: 0.6rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+    .badge.present { background: rgba(0,227,150,0.1); color: var(--success); border: 1px solid rgba(0,227,150,0.2); }
+    .badge.absent { background: rgba(255,69,96,0.1); color: var(--danger); border: 1px solid rgba(255,69,96,0.2); }
 
-    .status-badge {
-        font-size: 0.65rem;
-        font-weight: 800;
-        letter-spacing: 1px;
-        padding: 6px 14px;
-        border-radius: 8px;
-        text-transform: uppercase;
-    }
-
-    .status-present { background: rgba(0, 255, 136, 0.1); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.2); }
-    .status-absent { background: rgba(255, 62, 62, 0.1); color: #ff3e3e; border: 1px solid rgba(255, 62, 62, 0.2); }
-
-    /* ── Report Generation Module ── */
-    .report-module {
-        background: linear-gradient(135deg, rgba(112, 0, 255, 0.05) 0%, rgba(0, 242, 255, 0.05) 100%);
-        border: 1px solid var(--glass-border);
-        border-radius: 32px;
-        padding: 40px;
-        display: flex;
-        align-items: center;
-        gap: 40px;
-    }
-
-    .report-info { flex: 1; }
-    .report-info h3 { font-family: 'Syncopate', sans-serif; font-size: 1rem; letter-spacing: 3px; color: #fff; margin-bottom: 10px; }
-    .report-info p { color: var(--text-dim); font-size: 0.85rem; }
-
-    .report-controls {
-        display: flex;
+    /* ── Bottom Row ── */
+    .bottom-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
         gap: 15px;
-        align-items: flex-end;
+        flex: 1; /* Take remaining space */
+        min-height: 0;
     }
 
-    .report-controls select {
-        background: rgba(0,0,0,0.3);
-        border: 1px solid var(--glass-border);
-        padding: 14px 20px;
-        border-radius: 12px;
-        color: #fff;
-        font-family: 'Space Grotesk', sans-serif;
-        outline: none;
-        cursor: pointer;
+    /* Trend Chart Placeholder */
+    .trend-placeholder { flex: 1; background: url('https://www.transparenttextures.com/patterns/cubes.png'); opacity: 0.5; border-radius: 8px; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+    .trend-placeholder::after {
+        content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 80%;
+        background: linear-gradient(to top, rgba(123, 97, 255, 0.2), transparent);
+    }
+    .trend-line {
+        position: absolute; bottom: 30%; left: 0; width: 100%; height: 2px; background: var(--primary);
+        box-shadow: 0 0 10px var(--primary);
     }
 
-    .btn-export {
-        background: var(--primary);
-        color: #000;
-        border: none;
-        padding: 16px 30px;
-        border-radius: 14px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        transition: all 0.3s;
-        box-shadow: 0 10px 20px -5px rgba(0, 242, 255, 0.4);
-    }
+    /* Insights */
+    .insight-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; padding-right: 5px; }
+    .insight-list::-webkit-scrollbar { width: 4px; }
+    .insight-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .insight-item { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.02); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.7rem; color: var(--text-main); }
+    .insight-icon { width: 26px; height: 26px; border-radius: 6px; display:flex; align-items:center; justify-content:center; font-size: 0.8rem; flex-shrink:0; }
 
-    .btn-export:hover { transform: translateY(-2px); background: #fff; }
-
-    @media (max-width: 1200px) {
-        .activity-grid { grid-template-columns: 1fr; }
-        .feed-card { height: 500px; }
-        .report-module { flex-direction: column; text-align: center; }
+    /* Quick Actions */
+    .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; flex: 1; }
+    .action-btn {
+        background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px;
+        display:flex; flex-direction:row; align-items:center; justify-content: center; gap:6px;
+        color:var(--text-main); text-decoration:none; transition:all 0.2s; font-size:0.75rem; font-weight: 500;
     }
+    .action-btn i { font-size: 1rem; }
+    .action-btn:hover { background: rgba(255,255,255,0.05); }
+    .action-btn.purple { color: #bca4ff; }
+    .action-btn.green { color: #a4f4d5; }
+    .action-btn.orange { color: #ffbba4; }
+    .action-btn.blue { color: #a4dbff; }
+
+    .great-going {
+        background: linear-gradient(135deg, rgba(123, 97, 255, 0.15), rgba(255, 69, 96, 0.05));
+        border: 1px solid rgba(123, 97, 255, 0.3); border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .great-going i { font-size: 1.2rem; color: var(--warning); }
+    .great-going h4 { font-size: 0.8rem; font-weight: 600; }
+    .great-going p { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px;}
+
+    /* Small Calendar Placeholder */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 0.65rem; flex: 1; align-content: center; }
+    .cal-day { color: var(--text-dim); font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .cal-date { padding: 4px 0; border-radius: 4px; color: #fff; }
+    .cal-date.active { background: var(--primary); color: #fff; font-weight: 700; box-shadow: 0 0 10px rgba(123, 97, 255, 0.4); }
+    .cal-legend { display: flex; justify-content: center; gap: 10px; font-size: 0.6rem; margin-top: 5px; color: var(--text-dim); flex-shrink: 0; }
+
 </style>
 
-<div class="dashboard-matrix">
-    <!-- Quick Stats -->
-    <div class="stats-matrix">
-        <div class="stat-card-3d">
-            <i class="fa-solid fa-users-viewfinder"></i>
-            <span class="stat-label">Total Personnel</span>
-            <h2 class="stat-value">{{ total_employees }}</h2>
+<div class="dashboard-grid">
+    
+    <!-- 1. Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-info">
+                <p>Total Employees</p>
+                <h3>{{ total_employees }}</h3>
+                <small>Across all departments</small>
+            </div>
+            <span class="stat-badge badge-up">↗ 12%</span>
         </div>
-        <div class="stat-card-3d">
-            <i class="fa-solid fa-user-check"></i>
-            <span class="stat-label">Units Present</span>
-            <h2 class="stat-value" style="color: var(--success);">{{ present_today }}</h2>
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="fa-solid fa-user-check"></i></div>
+            <div class="stat-info">
+                <p>Present Today</p>
+                <h3>{{ present_today }}</h3>
+                <small>{{ rate }}% attendance</small>
+            </div>
+            <span class="stat-badge badge-green">↗ 8%</span>
         </div>
-        <div class="stat-card-3d">
-            <i class="fa-solid fa-user-slash"></i>
-            <span class="stat-label">Units Absent</span>
-            <h2 class="stat-value" style="color: var(--danger);">{{ absent_today }}</h2>
+        <div class="stat-card">
+            <div class="stat-icon orange"><i class="fa-solid fa-user-xmark"></i></div>
+            <div class="stat-info">
+                <p>Absent Today</p>
+                <h3>{{ absent_today }}</h3>
+                <small>{{ (100 - rate)|round(2) }}% absent</small>
+            </div>
+            <span class="stat-badge badge-down">↘ 2%</span>
         </div>
-        <div class="stat-card-3d">
-            <i class="fa-solid fa-satellite-dish"></i>
-            <span class="stat-label">System Epoch</span>
-            <h2 class="stat-value" id="currentEpoch" style="font-size: 1.1rem; padding: 12px 0;">--:--:--</h2>
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="fa-solid fa-clock"></i></div>
+            <div class="stat-info">
+                <p>Avg. Check-in</p>
+                <h3 id="dashClock">09:00 AM</h3>
+                <small>Today</small>
+            </div>
+            <span class="stat-badge badge-blue">On time</span>
         </div>
     </div>
 
-    <!-- Feeds -->
-    <div class="activity-grid">
-        <!-- Live Check-Ins -->
-        <div class="feed-card">
-            <div class="feed-header">
-                <h3>Live_Authentication_Feed</h3>
-                <span class="status-badge" style="background: rgba(0, 242, 255, 0.1); color: var(--primary);">Network_Active</span>
+    <!-- 2. Main Row -->
+    <div class="main-row">
+        <!-- Attendance Overview -->
+        <div class="glass-card">
+            <div class="card-header">
+                <h2>Attendance Overview</h2>
+                <select>
+                    <option>This Month</option>
+                    <option>This Week</option>
+                    <option>Today</option>
+                    <option>Custom Range</option>
+                </select>
             </div>
-            <div class="feed-body">
-                {% for p in present_list %}
-                <div class="personnel-item">
-                    <div class="personnel-info">
-                        <h4>{{ p.name }}</h4>
-                        <p>{{ p.department }} // ID: {{ p.employee_id }}</p>
+            <div class="donut-container">
+                <div class="donut-chart">
+                    <div class="donut-inner">
+                        <h3>{{ rate }}%</h3>
+                        <p>Present</p>
                     </div>
-                    <div class="status-badge status-present">{{ p.login_time }}</div>
                 </div>
-                {% else %}
-                <div style="text-align: center; padding: 100px; opacity: 0.3;">
-                    <i class="fa-solid fa-inbox fa-3x mb-3"></i>
-                    <p>Awaiting Signal...</p>
+                <div class="donut-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: var(--success);"></div> Present
+                        <span class="legend-val">{{ present_today }}</span> <span style="color:var(--success); font-size:0.7rem;">{{ rate }}%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: var(--danger);"></div> Absent
+                        <span class="legend-val">{{ absent_today }}</span> <span style="color:var(--danger); font-size:0.7rem;">{{ (100 - rate)|round(2) }}%</span>
+                    </div>
                 </div>
-                {% endfor %}
+            </div>
+            <div class="overview-stats">
+                <div class="o-stat">
+                    <p><i class="fa-regular fa-calendar"></i> Total Working Days</p>
+                    <h4>22</h4>
+                </div>
+                <div class="o-stat">
+                    <p><i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Days Present</p>
+                    <h4>21</h4>
+                </div>
+                <div class="o-stat">
+                    <p><i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i> Days Absent</p>
+                    <h4>1</h4>
+                </div>
+                <div class="o-stat">
+                    <p><i class="fa-solid fa-arrow-trend-up" style="color:var(--success);"></i> Attendance Rate</p>
+                    <h4>{{ rate }}%</h4>
+                </div>
             </div>
         </div>
 
-        <!-- Missing Units -->
-        <div class="feed-card">
-            <div class="feed-header">
-                <h3>{% if is_sunday %}Weekend_Personnel{% else %}Offline_Personnel{% endif %}</h3>
-                <span class="status-badge" style="background: rgba(255, 62, 62, 0.1); color: var(--danger);">{% if is_sunday %}Holiday_Protocol{% else %}Missing_Link{% endif %}</span>
+        <!-- Recent Attendance -->
+        <div class="glass-card">
+            <div class="card-header">
+                <h2>Recent Attendance</h2>
+                <a href="{{ url_for('history') }}" class="view-all">View All</a>
             </div>
-            <div class="feed-body">
-                {% for a in absent_list %}
-                <div class="personnel-item">
-                    <div class="personnel-info">
-                        <h4>{{ a.name }}</h4>
-                        <p>{{ a.department }}</p>
-                    </div>
-                    <div class="status-badge status-absent">{% if is_sunday %}HOLIDAY{% else %}OFFLINE{% endif %}</div>
-                </div>
-                {% else %}
-                <div style="text-align: center; padding: 100px; color: var(--success);">
-                    <i class="fa-solid fa-shield-check fa-3x mb-3"></i>
-                    <p>All Units Accounted.</p>
-                </div>
-                {% endfor %}
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>ID</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in recent_logs %}
+                        <tr>
+                            <td class="td-user">
+                                <img src="https://ui-avatars.com/api/?name={{ l.name|urlencode }}&background=random" alt="User">
+                                <span>{{ l.name }}</span>
+                            </td>
+                            <td style="color:var(--primary); font-size:0.75rem;">ID-{{ l.employee_id }}</td>
+                            <td>{{ l.login_time }}</td>
+                            <td>{{ l.logout_time if l.logout_time and l.logout_time != 'Absent' else '--:--' }}</td>
+                            <td>
+                                {% if l.login_time == 'Absent' %}
+                                    <span class="badge absent"><div class="legend-dot" style="background:var(--danger);"></div> Absent</span>
+                                {% else %}
+                                    <span class="badge present"><div class="legend-dot" style="background:var(--success);"></div> Present</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:var(--text-dim); text-align:right;"><i class="fa-solid fa-ellipsis"></i></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" style="text-align:center; padding: 40px; color:var(--text-dim);">No recent activity.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Export Module -->
-    <div class="report-module">
-        <div class="report-info">
-            <h3>Temporal Data Extraction</h3>
-            <p>Compile and export personnel attendance metrics to encrypted Excel format.</p>
+    <!-- 3. Bottom Row -->
+    <div class="bottom-row">
+        <!-- Trend -->
+        <div class="glass-card">
+            <div class="card-header" style="margin-bottom: 0;">
+                <h2>Attendance Trend</h2>
+                <select id="trendSelect">
+                    <option value="{{ rate }}%">This Week</option>
+                    <option value="89.4%">Last Week</option>
+                    <option value="91.2%">This Month</option>
+                </select>
+            </div>
+            <div class="trend-placeholder">
+                <div class="trend-line" id="trendLine"></div>
+                <span class="stat-badge badge-up" id="trendBadge" style="top: 20px; left: 50%; transform: translateX(-50%); position: absolute;">{{ rate }}%</span>
+            </div>
         </div>
-        <div class="report-controls">
-            <select id="reportMonth">
-                <option value="1">JANUARY</option><option value="2">FEBRUARY</option>
-                <option value="3">MARCH</option><option value="4">APRIL</option>
-                <option value="5">MAY</option><option value="6">JUNE</option>
-                <option value="7">JULY</option><option value="8">AUGUST</option>
-                <option value="9">SEPTEMBER</option><option value="10">OCTOBER</option>
-                <option value="11">NOVEMBER</option><option value="12">DECEMBER</option>
-            </select>
-            <select id="reportYear">
-                <option value="2025">2025</option><option value="2026" selected>2026</option>
-            </select>
-            <button class="btn-export" onclick="downloadReport()">
-                <i class="fa-solid fa-file-export"></i> Export_Matrix
-            </button>
+
+        <!-- Calendar -->
+        <div class="glass-card">
+            <div class="card-header" style="margin-bottom: 0;">
+                <h2>Attendance Calendar</h2>
+                <select id="calendarSelect">
+                    <option value="3-2026">April 2026</option>
+                    <option value="2-2026">March 2026</option>
+                    <option value="1-2026">February 2026</option>
+                    <option value="0-2026">January 2026</option>
+                </select>
+            </div>
+            <div class="cal-grid" id="calendarGrid">
+                <!-- Will be dynamically populated via JS -->
+            </div>
+            <div class="cal-legend">
+                <span><div class="legend-dot" style="background:var(--success); display:inline-block; margin-right:4px;"></div>Present</span>
+                <span><div class="legend-dot" style="background:var(--danger); display:inline-block; margin-right:4px;"></div>Absent</span>
+            </div>
+        </div>
+
+        <!-- Insights -->
+        <div class="glass-card">
+            <h2>AI Insights</h2>
+            <div class="insight-list">
+                <div class="insight-item">
+                    <div class="insight-icon" style="background:rgba(123,97,255,0.1); color:var(--primary);"><i class="fa-solid fa-user-clock"></i></div>
+                    <div style="flex:1;">{{ absent_today }} employees are absent compared to yesterday</div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--text-dim);"></i>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon" style="background:rgba(255,176,25,0.1); color:var(--warning);"><i class="fa-solid fa-hands-clapping"></i></div>
+                    <div style="flex:1;">Great job! Majority is on time today. 🎉</div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--text-dim);"></i>
+                </div>
+                <div class="insight-item">
+                    <div class="insight-icon" style="background:rgba(0,227,150,0.1); color:var(--success);"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                    <div style="flex:1;">Attendance rate is solid at {{ rate }}% this week</div>
+                    <i class="fa-solid fa-arrow-trend-up" style="color:var(--success);"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex; flex-direction:column;">
+            <div class="card-header"><h2>Quick Actions</h2></div>
+            <div class="quick-actions">
+                <a href="{{ url_for('attendance') }}" class="action-btn purple">
+                    <i class="fa-solid fa-video"></i> Live Attendance
+                </a>
+                <a href="{{ url_for('add_employee_route') }}" class="action-btn green">
+                    <i class="fa-solid fa-user-plus"></i> Add Employee
+                </a>
+                <a href="{{ url_for('user_panel') }}" class="action-btn orange" target="_blank">
+                    <i class="fa-solid fa-desktop"></i> Kiosk Mode
+                </a>
+                <a href="{{ url_for('export_excel') }}?month=4&year=2026" class="action-btn blue">
+                    <i class="fa-solid fa-file-export"></i> Export Excel
+                </a>
+            </div>
+            <div class="great-going">
+                <i class="fa-solid fa-crown"></i>
+                <div>
+                    <h4>Great going, Admin!</h4>
+                    <p>You're maintaining excellent tracking.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Modals for Details -->
+<style>
+    .custom-modal {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(4, 5, 12, 0.8); backdrop-filter: blur(8px); z-index: 10000;
+        align-items: center; justify-content: center;
+    }
+    .custom-modal.active { display: flex; }
+    .modal-content {
+        background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;
+        width: 100%; max-width: 450px; max-height: 70vh; padding: 25px; display: flex; flex-direction: column;
+        animation: modalEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalEnter { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
+    
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+    .modal-header h3 { font-size: 1.1rem; color: #fff; font-weight: 600; }
+    .close-modal { background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+    .close-modal:hover { color: #fff; }
+    
+    .modal-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+    .modal-list::-webkit-scrollbar { width: 4px; }
+    .modal-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    
+    .modal-item {
+        display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.02);
+        padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.03);
+    }
+    .modal-item img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+    .modal-item-info { flex: 1; }
+    .modal-item-info h4 { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .modal-item-info p { font-size: 0.75rem; color: var(--text-dim); }
+</style>
+
+<!-- Present Modal -->
+<div class="custom-modal" id="presentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-user-check" style="color:var(--success); margin-right:8px;"></i> Present Employees</h3>
+            <button class="close-modal" onclick="closeModals()">&times;</button>
+        </div>
+        <div class="modal-list">
+            {% for p in present_list %}
+            <div class="modal-item">
+                <img src="https://ui-avatars.com/api/?name={{ p.name|urlencode }}&background=00E396&color=fff" alt="User">
+                <div class="modal-item-info">
+                    <h4>{{ p.name }}</h4>
+                    <p>Dept: {{ p.department }} | ID: {{ p.employee_id }}</p>
+                </div>
+                <span class="badge present">{{ p.login_time }}</span>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: var(--text-dim); margin-top: 20px;">No present employees found.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Absent Modal -->
+<div class="custom-modal" id="absentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-user-xmark" style="color:var(--danger); margin-right:8px;"></i> Absent Employees</h3>
+            <button class="close-modal" onclick="closeModals()">&times;</button>
+        </div>
+        <div class="modal-list">
+            {% for a in absent_list %}
+            <div class="modal-item">
+                <img src="https://ui-avatars.com/api/?name={{ a.name|urlencode }}&background=FF4560&color=fff" alt="User">
+                <div class="modal-item-info">
+                    <h4>{{ a.name }}</h4>
+                    <p>Dept: {{ a.department }} | ID: {{ a.employee_id }}</p>
+                </div>
+                <span class="badge absent">Absent</span>
+            </div>
+            {% else %}
+            <p style="text-align: center; color: var(--text-dim); margin-top: 20px;">All employees are present! 🎉</p>
+            {% endfor %}
         </div>
     </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- Clock Epoch ---
-        const clock = document.getElementById('currentEpoch');
-        setInterval(() => {
-            const now = new Date();
-            clock.textContent = now.toLocaleTimeString('en-US', { hour12: false });
-        }, 1000);
+        // Simple clock
+        const clock = document.getElementById('dashClock');
+        if(clock) {
+            setInterval(() => {
+                const now = new Date();
+                clock.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit' });
+            }, 1000);
+        }
 
+        // Add interactive clicking for Details Modal
+        const presentCard = document.querySelectorAll('.stats-row .stat-card')[1];
+        const absentCard = document.querySelectorAll('.stats-row .stat-card')[2];
 
-        // Set current month/year
-        const today = new Date();
-        document.getElementById('reportMonth').value = today.getMonth() + 1;
-        document.getElementById('reportYear').value = today.getFullYear();
+        if(presentCard) {
+            presentCard.style.cursor = 'pointer';
+            presentCard.addEventListener('click', () => {
+                document.getElementById('presentModal').classList.add('active');
+            });
+        }
+
+        if(absentCard) {
+            absentCard.style.cursor = 'pointer';
+            absentCard.addEventListener('click', () => {
+                document.getElementById('absentModal').classList.add('active');
+            });
+        }
+
+        // ─── DYNAMIC CALENDAR BUILDER ───
+        const calendarSelect = document.getElementById('calendarSelect');
+        const calendarGrid = document.getElementById('calendarGrid');
+
+        function generateCalendar(monthIndex, year) {
+            if(!calendarGrid) return;
+            
+            calendarGrid.innerHTML = `
+                <div class="cal-day">MON</div><div class="cal-day">TUE</div><div class="cal-day">WED</div>
+                <div class="cal-day">THU</div><div class="cal-day">FRI</div><div class="cal-day">SAT</div>
+                <div class="cal-day">SUN</div>
+            `;
+            
+            const firstDay = new Date(year, monthIndex, 1).getDay();
+            // JS Days: 0=Sun, 1=Mon...6=Sat. Grid needs: 0=Mon...6=Sun.
+            const emptyCells = (firstDay === 0) ? 6 : firstDay - 1;
+            
+            for (let i = 0; i < emptyCells; i++) {
+                calendarGrid.innerHTML += '<div></div>';
+            }
+            
+            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+            const today = new Date();
+            
+            for (let d = 1; d <= daysInMonth; d++) {
+                let activeClass = '';
+                if (today.getDate() === d && today.getMonth() === monthIndex && today.getFullYear() === year) {
+                    activeClass = 'active';
+                }
+                
+                // Styling Sundays as different or standard
+                calendarGrid.innerHTML += `<div class="cal-date ${activeClass}">${d}</div>`;
+            }
+        }
+
+        if(calendarSelect) {
+            calendarSelect.addEventListener('change', (e) => {
+                const [m, y] = e.target.value.split('-').map(Number);
+                generateCalendar(m, y);
+            });
+            // Initial Load for April 2026
+            generateCalendar(3, 2026);
+        }
+
+        // ─── DYNAMIC TREND HANDLER ───
+        const trendSelect = document.getElementById('trendSelect');
+        const trendBadge = document.getElementById('trendBadge');
+        const trendLine = document.getElementById('trendLine');
+
+        if(trendSelect && trendBadge) {
+            trendSelect.addEventListener('change', (e) => {
+                trendBadge.textContent = e.target.value;
+                if(trendLine) {
+                    const pct = parseFloat(e.target.value) || 90;
+                    trendLine.style.bottom = `${pct * 0.4}%`;
+                    trendLine.style.opacity = (pct / 100).toString();
+                }
+            });
+        }
     });
 
-    function downloadReport() {
-        const month = document.getElementById('reportMonth').value;
-        const year = document.getElementById('reportYear').value;
-        window.location.href = `/export_excel?month=${month}&year=${year}`;
+    function closeModals() {
+        document.getElementById('presentModal').classList.remove('active');
+        document.getElementById('absentModal').classList.remove('active');
     }
+
+    // Close on background click
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('custom-modal')) {
+            closeModals();
+        }
+    });
 </script>
 
 {% endblock %}

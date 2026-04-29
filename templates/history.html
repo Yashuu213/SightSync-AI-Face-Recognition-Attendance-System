@@ -43,33 +43,22 @@
 
     .log-row {
         background: var(--card-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 16px;
-        padding: 20px 30px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 15px 25px;
         display: grid;
-        grid-template-columns: 120px 2fr 1fr 1fr 1fr 120px;
+        grid-template-columns: 110px 2fr 1fr 1fr 1fr 1fr 100px;
         align-items: center;
-        gap: 20px;
-        transition: all 0.3s;
+        gap: 15px;
+        transition: all 0.2s ease;
         position: relative;
         overflow: hidden;
     }
 
     .log-row:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.02);
         border-color: var(--primary);
-        transform: translateX(10px);
-        box-shadow: -10px 0 20px rgba(0, 242, 255, 0.05);
-    }
-
-    .log-row::before {
-        content: '';
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 4px;
-        background: var(--primary);
-        opacity: 0;
-        transition: opacity 0.3s;
+        box-shadow: 0 4px 20px rgba(123, 97, 255, 0.05);
     }
 
     .log-row:hover::before { opacity: 1; }
