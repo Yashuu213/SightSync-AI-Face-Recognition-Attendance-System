@@ -130,7 +130,7 @@ def attendance():
 @app.route('/history')
 @login_required
 def history():
-    return render_template('history.html', logs=get_attendance_logs())
+    return render_template('history.html', logs=get_attendance_logs(last_7_days=True))
 
 @app.route('/user')
 def user_panel():

@@ -248,7 +248,7 @@ def mark_attendance(employee_id):
             conn.close()
             return "ERROR", f"System Sync Error"
 
-def get_attendance_logs(date=None, limit=None):
+def get_attendance_logs(date=None, limit=None, last_7_days=False):
     conn = get_db_connection()
     cursor = get_cursor(conn)
     p = get_placeholder()
@@ -260,9 +260,20 @@ def get_attendance_logs(date=None, limit=None):
     '''
     
     params = []
+    where_clauses = []
+    
     if date:
-        query += f" WHERE a.date = {p} "
+        where_clauses.append(f"a.date = {p}")
         params.append(date)
+        
+    if last_7_days:
+        from datetime import datetime as dt, timedelta
+        threshold = (dt.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        where_clauses.append(f"a.date >= {p}")
+        params.append(threshold)
+        
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
         
     query += " ORDER BY a.date DESC, a.login_time DESC "
     

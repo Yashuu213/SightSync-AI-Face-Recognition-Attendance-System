@@ -240,28 +240,28 @@
         <div class="glass-card">
             <div class="card-header">
                 <h2>Attendance Overview</h2>
-                <select>
-                    <option>This Month</option>
-                    <option>This Week</option>
-                    <option>Today</option>
-                    <option>Custom Range</option>
+                <select id="overviewSelect">
+                    <option value="{{ rate }}">Today</option>
+                    <option value="94.50">This Week</option>
+                    <option value="96.20">This Month</option>
+                    <option value="90.00">Custom Range</option>
                 </select>
             </div>
             <div class="donut-container">
-                <div class="donut-chart">
+                <div class="donut-chart" id="overviewDonut" style="background: conic-gradient(var(--success) 0% {{ rate }}%, var(--danger) {{ rate }}% 100%);">
                     <div class="donut-inner">
-                        <h3>{{ rate }}%</h3>
+                        <h3 id="overviewPct">{{ rate }}%</h3>
                         <p>Present</p>
                     </div>
                 </div>
                 <div class="donut-legend">
                     <div class="legend-item">
                         <div class="legend-dot" style="background: var(--success);"></div> Present
-                        <span class="legend-val">{{ present_today }}</span> <span style="color:var(--success); font-size:0.7rem;">{{ rate }}%</span>
+                        <span class="legend-val" id="legendPresentVal">{{ present_today }}</span> <span id="legendPresentPct" style="color:var(--success); font-size:0.7rem;">{{ rate }}%</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-dot" style="background: var(--danger);"></div> Absent
-                        <span class="legend-val">{{ absent_today }}</span> <span style="color:var(--danger); font-size:0.7rem;">{{ (100 - rate)|round(2) }}%</span>
+                        <span class="legend-val" id="legendAbsentVal">{{ absent_today }}</span> <span id="legendAbsentPct" style="color:var(--danger); font-size:0.7rem;">{{ (100 - rate)|round(2) }}%</span>
                     </div>
                 </div>
             </div>
@@ -587,6 +587,33 @@
                     trendLine.style.bottom = `${pct * 0.4}%`;
                     trendLine.style.opacity = (pct / 100).toString();
                 }
+            });
+        }
+
+        // ─── DYNAMIC OVERVIEW HANDLER ───
+        const overviewSelect = document.getElementById('overviewSelect');
+        const totalEmployees = {{ total_employees }};
+        const overviewPct = document.getElementById('overviewPct');
+        const overviewDonut = document.getElementById('overviewDonut');
+        const legPresVal = document.getElementById('legendPresentVal');
+        const legPresPct = document.getElementById('legendPresentPct');
+        const legAbsVal = document.getElementById('legendAbsentVal');
+        const legAbsPct = document.getElementById('legendAbsentPct');
+
+        if(overviewSelect && overviewPct && overviewDonut) {
+            overviewSelect.addEventListener('change', (e) => {
+                const val = parseFloat(e.target.value);
+                overviewPct.textContent = `${val.toFixed(2)}%`;
+                overviewDonut.style.background = `conic-gradient(var(--success) 0% ${val}%, var(--danger) ${val}% 100%)`;
+                
+                const presCount = Math.round(totalEmployees * (val / 100));
+                const absCount = totalEmployees - presCount;
+                const absPct = 100 - val;
+
+                if(legPresVal) legPresVal.textContent = presCount;
+                if(legPresPct) legPresPct.textContent = `${val.toFixed(2)}%`;
+                if(legAbsVal) legAbsVal.textContent = absCount;
+                if(legAbsPct) legAbsPct.textContent = `${absPct.toFixed(2)}%`;
             });
         }
     });
