@@ -133,6 +133,10 @@
     .badge { padding: 3px 8px; border-radius: 10px; font-size: 0.6rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
     .badge.present { background: rgba(0,227,150,0.1); color: var(--success); border: 1px solid rgba(0,227,150,0.2); }
     .badge.absent { background: rgba(255,69,96,0.1); color: var(--danger); border: 1px solid rgba(255,69,96,0.2); }
+    .badge.pending { background: rgba(255,176,25,0.1); color: var(--warning); border: 1px solid rgba(255,176,25,0.2); }
+
+    .btn-approve { background: var(--success); color: #000; border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; cursor: pointer; }
+    .btn-reject { background: var(--danger); color: #fff; border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; cursor: pointer; margin-left: 5px; }
 
     /* ── Bottom Row ── */
     .bottom-row {
@@ -369,27 +373,41 @@
             </div>
         </div>
 
-        <!-- Insights -->
-        <div class="glass-card">
-            <h2>AI Insights</h2>
-            <div class="insight-list">
-                <div class="insight-item">
-                    <div class="insight-icon" style="background:rgba(123,97,255,0.1); color:var(--primary);"><i class="fa-solid fa-user-clock"></i></div>
-                    <div style="flex:1;">{{ absent_today }} employees are absent compared to yesterday</div>
-                    <i class="fa-solid fa-chevron-right" style="color:var(--text-dim);"></i>
+        <!-- Leave Management -->
+        <div class="glass-card" style="flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 25px; cursor: pointer; position: relative; overflow: hidden; border: 1px solid rgba(123, 97, 255, 0.2);" onclick="openLeaveModal()">
+            <!-- Background Glow -->
+            <div style="position: absolute; top: -50%; left: -20%; width: 100px; height: 100px; background: var(--primary); filter: blur(60px); opacity: 0.15;"></div>
+            
+            <div style="display: flex; align-items: center; gap: 20px; z-index: 1;">
+                <div style="width: 60px; height: 60px; background: rgba(123, 97, 255, 0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.8rem; border: 1px solid rgba(123, 97, 255, 0.1);">
+                    <i class="fa-solid fa-envelope-open-text"></i>
                 </div>
-                <div class="insight-item">
-                    <div class="insight-icon" style="background:rgba(255,176,25,0.1); color:var(--warning);"><i class="fa-solid fa-hands-clapping"></i></div>
-                    <div style="flex:1;">Great job! Majority is on time today. 🎉</div>
-                    <i class="fa-solid fa-chevron-right" style="color:var(--text-dim);"></i>
-                </div>
-                <div class="insight-item">
-                    <div class="insight-icon" style="background:rgba(0,227,150,0.1); color:var(--success);"><i class="fa-solid fa-arrow-trend-up"></i></div>
-                    <div style="flex:1;">Attendance rate is solid at {{ rate }}% this week</div>
-                    <i class="fa-solid fa-arrow-trend-up" style="color:var(--success);"></i>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 700; color: #fff; margin: 0; letter-spacing: 0.5px;">Leave Requests</h3>
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: 3px;">Manage employee applications</p>
                 </div>
             </div>
+
+            <div style="z-index: 1; display: flex; align-items: center; gap: 15px;">
+                {% if pending_leaves_count > 0 %}
+                <div style="background: linear-gradient(135deg, #FF4560, #FF7E90); color: #fff; padding: 8px 18px; border-radius: 30px; font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(255, 69, 96, 0.4); display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 8px; height: 8px; background: #fff; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+                    {{ pending_leaves_count }} NEW
+                </div>
+                {% else %}
+                <span style="color: var(--text-dim); font-size: 0.8rem; font-weight: 600; opacity: 0.6;">No Pending</span>
+                {% endif %}
+                <i class="fa-solid fa-chevron-right" style="color: var(--text-dim); opacity: 0.5;"></i>
+            </div>
         </div>
+
+        <style>
+            @keyframes pulse {
+                0% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.3); opacity: 0.5; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        </style>
 
         <!-- Actions -->
         <div style="display:flex; flex-direction:column;">
@@ -501,6 +519,19 @@
     </div>
 </div>
 
+<!-- Leave Requests Modal -->
+<div class="custom-modal" id="leaveModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-envelope-open-text" style="color:var(--primary); margin-right:8px;"></i> Leave Requests</h3>
+            <button class="close-modal" onclick="closeModals()">&times;</button>
+        </div>
+        <div class="modal-list" id="leaveReqList">
+            <p style="text-align: center; color: var(--text-dim); margin-top: 20px;">Fetching requests...</p>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Simple clock
@@ -511,6 +542,11 @@
                 clock.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit' });
             }, 1000);
         }
+
+        // Fetch leaves on load
+        fetchPendingLeaves();
+        // Periodically refresh dashboard leaves every 30s
+        setInterval(fetchPendingLeaves, 30000);
 
         // Add interactive clicking for Details Modal
         const presentCard = document.querySelectorAll('.stats-row .stat-card')[1];
@@ -618,9 +654,80 @@
         }
     });
 
+    async function openLeaveModal() {
+        document.getElementById('leaveModal').classList.add('active');
+        fetchPendingLeaves();
+        // Start polling while modal is open
+        window.leavePollInterval = setInterval(fetchPendingLeaves, 10000);
+    }
+
     function closeModals() {
         document.getElementById('presentModal').classList.remove('active');
         document.getElementById('absentModal').classList.remove('active');
+        document.getElementById('leaveModal').classList.remove('active');
+        if (window.leavePollInterval) clearInterval(window.leavePollInterval);
+    }
+
+
+    async function fetchPendingLeaves() {
+        const list = document.getElementById('leaveReqList');
+        try {
+            const res = await fetch('/api/get_leaves?status=Pending');
+            const data = await res.json();
+            if (data.success) {
+                renderLeaveRequests(data.leaves);
+            }
+        } catch (e) {
+            list.innerHTML = '<p style="text-align: center; color: var(--danger);">Failed to load requests</p>';
+        }
+    }
+
+    function renderLeaveRequests(leaves) {
+        // Render in Modal
+        const modalList = document.getElementById('leaveReqList');
+        if (modalList) {
+            if (leaves.length === 0) {
+                modalList.innerHTML = '<p style="text-align: center; color: var(--text-dim); margin-top: 20px;">No pending leave requests! 🎉</p>';
+            } else {
+                modalList.innerHTML = '';
+                leaves.forEach(l => {
+                    const item = document.createElement('div');
+                    item.className = 'modal-item';
+                    item.innerHTML = `
+                        <div class="modal-item-info">
+                            <h4 style="margin-bottom: 5px;">${l.name} <small style="color:var(--primary); font-weight:400;">(${l.employee_id})</small></h4>
+                            <p style="color:#fff; font-weight:600; margin-bottom:2px;">${l.leave_type}: ${l.start_date} to ${l.end_date}</p>
+                            <p style="font-style: italic;">"${l.reason || 'No reason provided'}"</p>
+                        </div>
+                        <div style="display:flex;">
+                            <button class="btn-approve" onclick="updateLeave(${l.id}, 'Approved')">Approve</button>
+                            <button class="btn-reject" onclick="updateLeave(${l.id}, 'Rejected')">Reject</button>
+                        </div>
+                    `;
+                    modalList.appendChild(item);
+                });
+            }
+        }
+    }
+
+    async function updateLeave(lid, status) {
+        if (!confirm(`Are you sure you want to ${status.toLowerCase()} this leave request?`)) return;
+        
+        try {
+            const res = await fetch('/api/update_leave_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leave_id: lid, status: status })
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchPendingLeaves();
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            alert("Error updating status");
+        }
     }
 
     // Close on background click

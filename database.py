@@ -57,6 +57,19 @@ def init_db():
                 FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
             )
         ''')
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS leaves (
+                id SERIAL PRIMARY KEY,
+                employee_id TEXT NOT NULL,
+                leave_type TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                reason TEXT,
+                status TEXT DEFAULT 'Pending',
+                applied_on TEXT,
+                FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
+            )
+        ''')
     else:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS employees (
@@ -76,6 +89,19 @@ def init_db():
                 login_time TEXT,
                 logout_time TEXT,
                 overtime_hours TEXT DEFAULT '0',
+                FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS leaves (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id TEXT NOT NULL,
+                leave_type TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                reason TEXT,
+                status TEXT DEFAULT 'Pending',
+                applied_on TEXT,
                 FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
             )
         ''')
@@ -313,6 +339,67 @@ def delete_attendance_record(record_id):
         return True
     except Exception as e:
         print(f"Error deleting attendance record: {e}")
+        return False
+    finally:
+        conn.close()
+def apply_leave(employee_id, leave_type, start_date, end_date, reason):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    applied_on = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        cursor.execute(f'''
+            INSERT INTO leaves (employee_id, leave_type, start_date, end_date, reason, applied_on)
+            VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+        ''', (employee_id, leave_type, start_date, end_date, reason, applied_on))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error applying leave: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_leaves(employee_id=None, status=None):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    
+    query = '''
+        SELECT l.*, e.name, e.department 
+        FROM leaves l
+        JOIN employees e ON l.employee_id = e.employee_id
+    '''
+    params = []
+    where_clauses = []
+    
+    if employee_id:
+        where_clauses.append(f"l.employee_id = {p}")
+        params.append(employee_id)
+    if status:
+        where_clauses.append(f"l.status = {p}")
+        params.append(status)
+        
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+    
+    query += " ORDER BY l.applied_on DESC"
+    
+    cursor.execute(query, tuple(params))
+    leaves = cursor.fetchall()
+    conn.close()
+    return leaves
+
+def update_leave_status(leave_id, status):
+    conn = get_db_connection()
+    cursor = get_cursor(conn)
+    p = get_placeholder()
+    try:
+        cursor.execute(f"UPDATE leaves SET status = {p} WHERE id = {p}", (status, leave_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating leave status: {e}")
         return False
     finally:
         conn.close()

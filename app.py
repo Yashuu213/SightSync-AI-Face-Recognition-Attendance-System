@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 import base64
 
-from database import init_db, add_employee, update_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, update_attendance_time, get_db_connection, get_cursor, get_placeholder
+from database import init_db, add_employee, update_employee, get_all_employees, delete_employee, mark_attendance, get_attendance_logs, update_attendance_time, get_db_connection, get_cursor, get_placeholder, apply_leave, get_leaves, update_leave_status
 from face_utils import encode_face_from_image, serialize_encoding, deserialize_encoding, match_face
 
 app = Flask(__name__)
@@ -17,6 +17,7 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB limit
 
 # ─── Database Init ────────────────────────────────────────────────────────────
 init_db()
+print(f"Database Initialized. Using {'PostgreSQL' if os.getenv('DATABASE_URL') else 'SQLite'}")
 
 # ─── In-memory face cache ─────────────────────────────────────────────────────
 known_encodings = []
@@ -103,6 +104,8 @@ def index():
     absent_list = [emp for emp in employees if str(emp['employee_id']) not in present_ids]
     
     is_sunday = datetime.now().weekday() == 6
+    pending_leaves = get_leaves(status='Pending')
+    
     return render_template('index.html', 
                            total_employees=len(employees),
                            present_today=len(present_list),
@@ -110,7 +113,8 @@ def index():
                            present_list=present_list,
                            absent_list=absent_list,
                            recent_logs=all_logs[:8],
-                           is_sunday=is_sunday)
+                           is_sunday=is_sunday,
+                           pending_leaves_count=len(pending_leaves))
 
 @app.route('/employees')
 @login_required
@@ -578,6 +582,63 @@ def api_delete_attendance_record(record_id):
     if delete_attendance_record(record_id):
         return jsonify(success=True)
     return jsonify(success=False, message="Failed to delete record.")
+
+# ─── API: Leave Management ──────────────────────────────────────────────────
+@app.route('/api/apply_leave', methods=['POST'])
+def api_apply_leave():
+    data = request.get_json(force=True)
+    eid = data.get('employee_id')
+    l_type = data.get('leave_type')
+    start = data.get('start_date')
+    end = data.get('end_date')
+    reason = data.get('reason', '')
+    
+    if not all([eid, l_type, start, end]):
+        return jsonify(success=False, message="Missing required fields")
+    
+    if apply_leave(eid, l_type, start, end, reason):
+        return jsonify(success=True, message="Leave application submitted!")
+    return jsonify(success=False, message="Failed to submit application")
+
+@app.route('/api/get_leaves', methods=['GET', 'POST'])
+def api_get_leaves():
+    # Can be called by admin (login_required) or by user (with eid)
+    eid = None
+    status = None
+    
+    if request.method == 'POST':
+        data = request.get_json(force=True)
+        eid = data.get('employee_id')
+        status = data.get('status')
+    else:
+        eid = request.args.get('employee_id')
+        status = request.args.get('status')
+        
+    # If no eid provided and not logged in as admin, reject
+    if not eid and 'logged_in' not in session:
+        return jsonify(success=False, message="Unauthorized"), 401
+        
+    leaves = get_leaves(employee_id=eid, status=status)
+    # Convert list of rows to list of dicts
+    leave_list = []
+    for l in leaves:
+        leave_list.append(dict(l))
+        
+    return jsonify(success=True, leaves=leave_list)
+
+@app.route('/api/update_leave_status', methods=['POST'])
+@login_required
+def api_update_leave_status():
+    data = request.get_json(force=True)
+    lid = data.get('leave_id')
+    status = data.get('status') # 'Approved' or 'Rejected'
+    
+    if not lid or not status:
+        return jsonify(success=False, message="Missing parameters")
+        
+    if update_leave_status(lid, status):
+        return jsonify(success=True, message=f"Leave {status.lower()} successfully")
+    return jsonify(success=False, message="Failed to update leave status")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
